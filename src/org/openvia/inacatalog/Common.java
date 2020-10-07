@@ -64,6 +64,7 @@ public class Common {
 		}
 	}
 	
+	
 	public void registrarLog(String tabla, int statusCode, String statusText, String body, String url, String metodo) {
 		try {
 			PreparedStatement pst = DB.prepareStatement("INSERT "
