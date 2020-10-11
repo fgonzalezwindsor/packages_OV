@@ -75,6 +75,7 @@ public class ImportOrderB2CMuro extends SvrProcess {
 	private Timestamp m_DateValue = null;
 
 	private Integer m_M_WareHouse_ID = 1000001; // Lampa
+	private Integer m_M_WareHouse_ab_ID = 1000010; // Abastecimiento
 
 	/**
 	 * Prepare - e.g., get Parameters.
@@ -343,13 +344,11 @@ public class ImportOrderB2CMuro extends SvrProcess {
 									if (rsp.getInt("cuenta") == 1) {
 										obl.setM_Product_ID(mProductID);
 										// validar Stock
-										String sqlps = "Select qtyavailableofb(p.m_product_ID," + m_M_WareHouse_ID
-												+ ") as Disponible, p.ProductType " +
+										String sqlps = "Select (qtyavailableofb(p.m_product_ID," + m_M_WareHouse_ID + ") + qtyavailableofb(p.m_product_ID," + m_M_WareHouse_ab_ID + ")) as Disponible, p.ProductType " +
 												" from M_product p where  p.m_product_ID=" + rs.getInt("M_Product_ID");
 										try {
 											PreparedStatement pstmtps = DB.prepareStatement(sqlps, get_TrxName());
 											ResultSet rsps = pstmtps.executeQuery();
-
 											if (rsps.next()) {
 												if (rsps.getString("ProductType").equals("I")) {
 													if (rs.getInt("Cantidad") <= rsps.getInt("Disponible")) {

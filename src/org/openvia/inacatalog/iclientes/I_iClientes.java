@@ -1,5 +1,7 @@
 package org.openvia.inacatalog.iclientes;
 
+import java.util.List;
+
 public interface I_iClientes {
 
 	/** codEmpresa
@@ -132,5 +134,18 @@ public interface I_iClientes {
 	 * @return boolean
 	 */
 	public boolean apiPostCliente(IClientesModel cliente);
+	
+	/**
+	 * PUT api/iClientes?empresa={empresa}&codcliente={codcliente}
+	 * @param cliente
+	 * @return boolean
+	 */
+	public boolean apiPutCliente(IClientesModel cliente);
+	
+	/**
+	 * retorna lista de clientes nuevos
+	 * @return List<IClientesModel>
+	 */
+	public List<IClientesModel> clientesNuevos(); 
 	
 }
