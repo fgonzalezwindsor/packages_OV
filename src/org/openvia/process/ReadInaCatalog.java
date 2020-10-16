@@ -368,14 +368,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								for (IPedidosLinsModel lin : listaFinal) {
 									MProduct product = productByValue(lin.getCodArticulo());
 									StringBuffer s_sql = new StringBuffer();
-									s_sql.append("SELECT rl.M_RequisitionLine_ID, rl.Qty")
+									// C_DocType_id = 1000111 Reserva Fisica
+									s_sql.append("SELECT rl.M_RequisitionLine_ID, rl.QtyReserved")
 											.append(" FROM M_Requisition r")
 											.append(" JOIN M_RequisitionLine rl ON rl.M_Requisition_ID = r.M_Requisition_ID")
 											.append(" WHERE r.C_BPartner_ID = ")
-											.append(bPartnerByValue(
-													jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString())
-															.getC_BPartner_ID())
+											.append(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID())
+											.append(" AND r.C_DocType_id = 1000111")
+											.append(" AND r.DocStatus IN ('CO','CL')")
 											.append(" AND rl.M_Product_ID = ").append(product.getM_Product_ID())
+											.append(" AND rl.QtyReserved > 0 ")
 											.append(" ORDER BY rl.Created");
 
 									PreparedStatement pst = DB.prepareStatement(s_sql.toString(), get_TrxName());
@@ -385,16 +387,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									boolean tieneReserva = false;
 									while (rs.next()) {
 										tieneReserva = true;
-										if (cantPedido.compareTo(new BigDecimal(rs.getInt("Qty"))) <= 0) {
+										if (cantPedido.compareTo(new BigDecimal(rs.getInt("QtyReserved"))) <= 0) {
 											mapRequisitionLine.put(rs.getInt("M_RequisitionLine_ID"), cantPedido);
-											cantPedido = cantPedido.subtract(new BigDecimal(rs.getInt("Qty")));
+											cantPedido = cantPedido.subtract(new BigDecimal(rs.getInt("QtyReserved")));
 											break;
 										} else
 										// Si la cantidad del pedido es mayor a la reserva fisica, se debe abrir la
 										// linea de la orden
 										{
 											mapRequisitionLine.put(rs.getInt("M_RequisitionLine_ID"), cantPedido);
-											cantPedido = cantPedido.subtract(new BigDecimal(rs.getInt("Qty")));
+											cantPedido = cantPedido.subtract(new BigDecimal(rs.getInt("QtyReserved")));
 										}
 									}
 									if (tieneReserva) {
@@ -408,9 +410,38 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											orderLine.setLine(lin.getLinPedido());
 											orderLine.setM_Product_ID(product.getM_Product_ID());
 											orderLine.setDescription(lin.getObsLinPed());
-											orderLine.set_CustomColumn("M_RequisitionLine_ID", entry.getKey());
-											orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
-											orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
+											
+											// M_WareHouse_ID 1000010: Abastecimiento
+											// M_WareHouse_ID 1000001: Lampa
+											BigDecimal disponible = null;
+											String sql = "SELECT qtyavailableofb(p.m_product_ID,1000010) + qtyavailableofb(p.m_product_ID,1000001) as disponible "
+													+ "FROM M_product p " + "WHERE  p.m_product_ID="
+													+ product.getM_Product_ID();
+											PreparedStatement pstmtps = DB.prepareStatement(sql, get_TrxName());
+											ResultSet rsps = pstmtps.executeQuery();
+											if (rsps.next()) {
+												disponible = rsps.getBigDecimal("disponible");
+											}
+											
+											if (entry.getKey() == null) {
+												if (disponible.compareTo(entry.getValue()) >= 0) {
+													orderLine.setQtyEntered(entry.getValue());
+													orderLine.setQtyOrdered(entry.getValue());
+												} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(entry.getValue()) == -1) {
+													orderLine.setQtyEntered(disponible);
+													orderLine.setQtyOrdered(disponible);
+													orderLine.set_CustomColumn("DEMAND", entry.getValue());
+												} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
+													orderLine.setQtyEntered(new BigDecimal(0));
+													orderLine.setQtyOrdered(new BigDecimal(0));
+													orderLine.set_CustomColumn("DEMAND", entry.getValue());
+													orderLine.set_CustomColumn("NOTPRINT", "Y");
+												}
+											} else {
+												orderLine.set_CustomColumn("M_RequisitionLine_ID", entry.getKey());
+												orderLine.setQtyEntered(entry.getValue());
+												orderLine.setQtyOrdered(entry.getValue());
+											}
 											orderLine.save();
 										}
 									} else {
