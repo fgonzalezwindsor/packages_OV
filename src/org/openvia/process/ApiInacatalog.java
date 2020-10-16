@@ -36,6 +36,7 @@ public class ApiInacatalog extends SvrProcess {
 	ApiIPedidosCentralLins iPedidosCentralLins = new ApiIPedidosCentralLins();
 	
 	ConexioDBInaCatalog connInacatalog = new ConexioDBInaCatalog();
+	ConexioDBInaCatalogWind connInacatalogWind = new ConexioDBInaCatalogWind();
 
 	@Override
 	protected void prepare() {
@@ -47,6 +48,7 @@ public class ApiInacatalog extends SvrProcess {
 	protected String doIt() throws Exception {
 		String semaforo = null;
 		Connection conn = connInacatalog.openConection();
+		Connection connWind = connInacatalogWind.openConection();
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm");
 		PreparedStatement pst = conn.prepareStatement("SELECT datValor FROM iParametros WHERE codParametro = 'SemaforoInaCatalog'");
 		ResultSet rs = pst.executeQuery();
@@ -58,6 +60,7 @@ public class ApiInacatalog extends SvrProcess {
 			// Actualizamos a Rojo
 			pst = conn.prepareStatement("UPDATE iParametros SET datValor = 'Rojo:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
 			pst.execute();
+			pst.close();
 			connInacatalog.closeConection(conn);
 			
 			// Comienza migracion Inacatalog
@@ -148,10 +151,18 @@ public class ApiInacatalog extends SvrProcess {
 			System.out.println("Inicio iPedidosCentralLins...");
 			iPedidosCentralLins.doIt();
 			System.out.println("Fin iPedidosCentralLins");
+			
 			// Fin migracion Inacatalog
+			connWind = connInacatalogWind.openConection();
+			pst = connWind.prepareStatement("EXEC SPI_PreciosLiquidacion");
+			pst.execute();
+			pst.close();
+			connInacatalogWind.closeConection(connWind);
+			
 			conn = connInacatalog.openConection();
 			pst = conn.prepareStatement("UPDATE iParametros SET datValor = 'Verde:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
 			pst.execute();
+			pst.close();
 			connInacatalog.closeConection(conn);
 		}
 		
@@ -159,13 +170,28 @@ public class ApiInacatalog extends SvrProcess {
 	}
 	
 	class ConexioDBInaCatalog {
-		
 		private Connection openConection() throws Exception {
 			Connection conn = null;
 			conn = DriverManager.getConnection("jdbc:sqlserver://190.215.113.91:1433;database=inaSAM;user=Windsor;password=Windsor;loginTimeout=30;"); 
 			return conn;
 		}
-		
+		private void closeConection(Connection conn) {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	class ConexioDBInaCatalogWind {
+		private Connection openConection() throws Exception {
+			Connection conn = null;
+			conn = DriverManager.getConnection("jdbc:sqlserver://190.215.113.91:1433;database=inaWINDSOR;user=Windsor;password=Windsor;loginTimeout=30;"); 
+			return conn;
+		}
 		private void closeConection(Connection conn) {
 			if (conn != null) {
 				try {

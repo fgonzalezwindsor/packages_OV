@@ -157,7 +157,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 														Integer.parseInt(jsonObjPedido
 																.get(clientesDir.COLUMNA_LINDIRCLI).toString()))
 												.getCodSuDirCli()));
-								requisition.set_CustomColumn("POREFERENCE", nroPedido);
+								requisition.set_CustomColumn("POREFERENCE", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido);
 								requisition.set_CustomColumn("inacatalog", "Y");
 								requisition.save();
 								List<IPedidosLinsModel> listaLinsPedidos = new ArrayList<IPedidosLinsModel>();
@@ -241,12 +241,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 							} else {
 								MOrder order = new MOrder(getCtx(), 0, get_TrxName());
 								order.setAD_Org_ID(m_AD_Org_ID);
-								order.setPOReference(jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
-								/*
-								 * ResultSet rsDocumentNo = DB.prepareStatement("",
-								 * get_TrxName()).executeQuery(); String documentNo =
-								 * rsDocumentNo.getString("o_DocumentNo");
-								 */
+								order.setPOReference(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
 								order.setDateOrdered(
 										stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
 								order.setC_BPartner_ID(
@@ -278,8 +273,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								order.set_CustomColumn("firma2", "Y"); // comercial
 								order.set_CustomColumn("firma3", "N"); // finanzas
 								order.set_CustomColumn("mediocompra", "InaCatalog");
-								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) { // Nota
-																													// Pre-Venta
+								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) { // Nota Pre-Venta
 									// 1000048: Orden de Pre-Venta
 									order.setC_DocType_ID(1000048);
 									order.setC_DocTypeTarget_ID(1000048);
@@ -293,9 +287,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 													jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()),
 											jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(),
 											jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("0")) { // Nota
-																														// Venta
-																														// Normal
+								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("0")) { // Nota Venta Normal
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
@@ -309,11 +301,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 													jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()),
 											jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(),
 											jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota
-																														// de
-																														// Venta
-																														// 72
-																														// Horas
+								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota de Venta 72 Horas
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
@@ -445,15 +433,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) >= 0) {
 											orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
 											orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
-										} else if (disponible.compareTo(BigDecimal.ZERO) == 1
-												&& disponible.compareTo(new BigDecimal(lin.getCanLinPed())) == -1) {
+										} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(new BigDecimal(lin.getCanLinPed())) == -1) {
 											orderLine.setQtyEntered(disponible);
 											orderLine.setQtyOrdered(disponible);
-											orderLine.set_CustomColumn("DEMAND", lin.getCanLinPed());
+											orderLine.set_CustomColumn("DEMAND", new BigDecimal(lin.getCanLinPed()));
 										} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
 											orderLine.setQtyEntered(new BigDecimal(0));
 											orderLine.setQtyOrdered(new BigDecimal(0));
-											orderLine.set_CustomColumn("DEMAND", lin.getCanLinPed());
+											orderLine.set_CustomColumn("DEMAND", new BigDecimal(lin.getCanLinPed()));
 											orderLine.set_CustomColumn("NOTPRINT", "Y");
 										}
 										orderLine.save();

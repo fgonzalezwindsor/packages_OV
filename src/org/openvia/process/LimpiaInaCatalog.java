@@ -118,7 +118,7 @@ public class LimpiaInaCatalog extends SvrProcess {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		pst = conexion.conn.prepareStatement("DELETE FROM iClientes WHERE codEmpresa=1 AND flaNvoCliente=0");
+		pst = conexion.conn.prepareStatement("DELETE FROM iClientes WHERE codEmpresa=1 AND flaNvoCliente=0 AND flaObsoleto=0");
 		try {
 			pst.execute();
 		} catch (SQLException e) {
