@@ -9,6 +9,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -126,40 +127,44 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						nroPedido = jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString();
 						// codTipoVenta = 4 no pasan a ADempiere
 						if (!jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("4")) {
-							if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota
-																												// Pre-Venta
-								MRequisition requisition = new MRequisition(getCtx(), 0, get_TrxName());
-								requisition.setAD_Org_ID(m_AD_Org_ID);
-								requisition.setC_DocType_ID(1000111); // 1000111: Reserva Fisica
-//						requisition.setDocumentNo(jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
-								requisition.setDocumentNo(null);
-								requisition.setDateRequired(
-										stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
-								requisition.setDateDoc(
-										stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
-								requisition.set_CustomColumn("C_BPartner_ID",
-										bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString())
-												.getC_BPartner_ID());
-								requisition.setAD_User_ID(100);
-								requisition.setPriorityRule(MRequisition.PRIORITYRULE_Medium);
-								requisition.setM_Warehouse_ID(1000001); // 1000001: Lampa
-								requisition.setM_PriceList_ID(1000000); // 1000000: Ventas
-								requisition.setDescription(jsonObjPedido.get(I_iPedidos.COLUMNA_OBSPEDIDO).toString());
-								requisition.set_CustomColumn("C_BPartner_ID",
-										bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString())
-												.getC_BPartner_ID());
-								requisition.set_CustomColumn("c_bpartner_location_ID",
-										Integer.parseInt(clientesDir
-												.apiGetClienteLDir(
-														Integer.parseInt(jsonObjPedido
-																.get(clientesDir.COLUMNA_CODEMPRESA).toString()),
-														jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(),
-														Integer.parseInt(jsonObjPedido
-																.get(clientesDir.COLUMNA_LINDIRCLI).toString()))
-												.getCodSuDirCli()));
-								requisition.set_CustomColumn("POREFERENCE", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido);
-								requisition.set_CustomColumn("inacatalog", "Y");
-								requisition.save();
+							if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
+								StringBuffer s_sql = new StringBuffer();
+								// C_DocType_id = 1000111 Reserva Fisica
+								s_sql.append("SELECT r.M_Requisition_ID")
+										.append(" FROM M_Requisition r")
+										.append(" WHERE r.C_BPartner_ID = ")
+										.append(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID())
+										.append(" AND r.C_DocType_id = 1000111")
+										.append(" AND r.DocStatus IN ('CO','CL')")
+										.append(" ORDER BY r.Created DESC");
+								PreparedStatement pst = DB.prepareStatement(s_sql.toString(), get_TrxName());
+								ResultSet rs = pst.executeQuery();
+								MRequisition requisition = null;
+								boolean tieneRequisition = false;
+								if (rs.next()) {
+									requisition = new MRequisition(getCtx(), rs.getInt("M_Requisition_ID"), get_TrxName());
+									tieneRequisition = true;
+								} else {
+									requisition = new MRequisition(getCtx(), 0, get_TrxName());
+									requisition.setAD_Org_ID(m_AD_Org_ID);
+									requisition.setC_DocType_ID(1000111); // 1000111: Reserva Fisica
+									requisition.setDocumentNo(null);
+									requisition.setDateRequired(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
+									requisition.setDateDoc(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
+									requisition.set_CustomColumn("C_BPartner_ID", bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
+									requisition.setAD_User_ID(100);
+									requisition.setPriorityRule(MRequisition.PRIORITYRULE_Medium);
+									requisition.setM_Warehouse_ID(1000001); // 1000001: Lampa
+									requisition.setM_PriceList_ID(1000000); // 1000000: Ventas
+									requisition.setDescription(jsonObjPedido.get(I_iPedidos.COLUMNA_OBSPEDIDO).toString());
+									requisition.set_CustomColumn("C_BPartner_ID", bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
+									requisition.set_CustomColumn("c_bpartner_location_ID", Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
+									requisition.set_CustomColumn("POREFERENCE", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido);
+									requisition.set_CustomColumn("inacatalog", "Y");
+									requisition.save();
+								}
+								rs.close();
+								pst.close();
 								List<IPedidosLinsModel> listaLinsPedidos = new ArrayList<IPedidosLinsModel>();
 								JSONArray jsonArrayLine = readJsonArrayFromUrl(
 										"http://190.215.113.91/InaCatalogAPI/Api/iPedidosLins?empresa="
@@ -206,37 +211,69 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								}
 
 								for (IPedidosLinsModel lin : listaFinal) {
-									MRequisitionLine requisitionLine = new MRequisitionLine(requisition);
-									requisitionLine.setAD_Org_ID(m_AD_Org_ID);
-									requisitionLine.setLine(lin.getLinPedido());
+									MRequisitionLine requisitionLine;
+									s_sql = new StringBuffer();
 									MProduct product = productByValue(lin.getCodArticulo());
-									requisitionLine.setM_Product_ID(product.getM_Product_ID());
-									requisitionLine.setDescription(lin.getObsLinPed());
+									s_sql.append("SELECT rl.M_RequisitionLine_ID, rl.QtyReserved")
+											.append(" FROM M_RequisitionLine rl")
+											.append(" AND rl.M_Product_ID = ").append(product.getM_Product_ID())
+											.append(" AND rl.M_Requisition_ID = ").append(requisition.getM_Requisition_ID())
+											.append(" ORDER BY rl.Created");
+									pst = DB.prepareStatement(s_sql.toString(), get_TrxName());
+									rs = pst.executeQuery();
+									if (rs.next()) {
+										requisitionLine = new MRequisitionLine(Env.getCtx(), rs.getInt("M_RequisitionLine_ID"), get_TrxName());
+										requisitionLine.setQty(requisitionLine.getQty().add(new BigDecimal(lin.getCanLinPed())));
+										requisitionLine.set_CustomColumn("QtyReserved", new BigDecimal(requisitionLine.get_Value("QtyReserved").toString()).add(new BigDecimal(lin.getCanLinPed())));
+										if (requisitionLine.save()) {
+											// guarda registro ov_pedido_requisitionline
+											if (tieneRequisition)
+												guardarRegistroPedidoReqLine(nroPedido, requisitionLine.getM_RequisitionLine_ID());
+										}
+									} else {
+										requisitionLine = new MRequisitionLine(requisition);
+										requisitionLine.setAD_Org_ID(m_AD_Org_ID);
+										requisitionLine.setLine(lin.getLinPedido());
+//										MProduct product = productByValue(lin.getCodArticulo());
+										requisitionLine.setM_Product_ID(product.getM_Product_ID());
+										requisitionLine.setDescription(lin.getObsLinPed());
 
-									// M_WareHouse_ID 1000010: Abastecimiento
-									// M_WareHouse_ID 1000001: Lampa
-									BigDecimal disponible = null;
-									String sql = "SELECT qtyavailableofb(p.m_product_ID,1000010) + qtyavailableofb(p.m_product_ID,1000001) as disponible "
-											+ "FROM M_product p " + "WHERE  p.m_product_ID="
-											+ product.getM_Product_ID();
-									PreparedStatement pstmtps = DB.prepareStatement(sql, get_TrxName());
-									ResultSet rsps = pstmtps.executeQuery();
-									if (rsps.next()) {
-										disponible = rsps.getBigDecimal("disponible");
-									}
-									requisitionLine.setQty(new BigDecimal(lin.getCanLinPed()));
-									
-									if ( disponible.compareTo(new BigDecimal(lin.getCanLinPed())) >= 0 ) {
+										// M_WareHouse_ID 1000010: Abastecimiento
+										// M_WareHouse_ID 1000001: Lampa
+										BigDecimal disponible = null;
+										String sql = "SELECT qtyavailableofb(p.m_product_ID,1000010) + qtyavailableofb(p.m_product_ID,1000001) as disponible "
+												+ "FROM M_product p " + "WHERE  p.m_product_ID="
+												+ product.getM_Product_ID();
+										PreparedStatement pstmtps = DB.prepareStatement(sql, get_TrxName());
+										ResultSet rsps = pstmtps.executeQuery();
+										if (rsps.next()) {
+											disponible = rsps.getBigDecimal("disponible");
+										}
+										rsps.close();
+										pstmtps.close();
+										
 										requisitionLine.setQty(new BigDecimal(lin.getCanLinPed()));
-									} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(new BigDecimal(lin.getCanLinPed())) == -1 ) {
-										requisitionLine.setQty(disponible);
-										requisitionLine.set_CustomColumn("DEMAND", lin.getCanLinPed()); 
-									} else if (disponible.compareTo(BigDecimal.ZERO) <= 0 ) { 
-										requisitionLine.setQty(new BigDecimal(0));
-										requisitionLine.set_CustomColumn("DEMAND", lin.getCanLinPed());
-										requisitionLine.set_CustomColumn("NOTPRINT", "Y"); 
+										requisitionLine.set_CustomColumn("QtyReserved", new BigDecimal(lin.getCanLinPed()));
+										if ( disponible.compareTo(new BigDecimal(lin.getCanLinPed())) >= 0 ) {
+											requisitionLine.setQty(new BigDecimal(lin.getCanLinPed()));
+											requisitionLine.set_CustomColumn("QtyReserved", new BigDecimal(lin.getCanLinPed()));
+										} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(new BigDecimal(lin.getCanLinPed())) == -1 ) {
+											requisitionLine.setQty(disponible);
+											requisitionLine.set_CustomColumn("QtyReserved", new BigDecimal(lin.getCanLinPed()));
+											requisitionLine.set_CustomColumn("DEMAND", lin.getCanLinPed()); 
+										} else if (disponible.compareTo(BigDecimal.ZERO) <= 0 ) { 
+											requisitionLine.setQty(new BigDecimal(0));
+											requisitionLine.set_CustomColumn("DEMAND", lin.getCanLinPed());
+											requisitionLine.set_CustomColumn("NOTPRINT", "Y"); 
+										}
+										if (requisitionLine.save()) {
+											// guarda registro ov_pedido_requisitionline
+											if (tieneRequisition)
+												guardarRegistroPedidoReqLine(nroPedido, requisitionLine.getM_RequisitionLine_ID());
+										}
 									}
-									requisitionLine.save();
+									rs.close();
+									pst.close();
 								}
 							} else {
 								MOrder order = new MOrder(getCtx(), 0, get_TrxName());
@@ -399,6 +436,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											cantPedido = cantPedido.subtract(new BigDecimal(rs.getInt("QtyReserved")));
 										}
 									}
+									rs.close();
+									pst.close();
 									if (tieneReserva) {
 										if (cantPedido.compareTo(BigDecimal.ZERO) > 0) {
 											mapRequisitionLine.put(null, cantPedido);
@@ -422,7 +461,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											if (rsps.next()) {
 												disponible = rsps.getBigDecimal("disponible");
 											}
-											
+											rsps.close();
+											pstmtps.close();
 											if (entry.getKey() == null) {
 												if (disponible.compareTo(entry.getValue()) >= 0) {
 													orderLine.setQtyEntered(entry.getValue());
@@ -461,6 +501,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										if (rsps.next()) {
 											disponible = rsps.getBigDecimal("disponible");
 										}
+										rsps.close();
+										pstmtps.close();
 										if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) >= 0) {
 											orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
 											orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
@@ -500,6 +542,18 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 		}
 
 		return "Pedidos Importados.";
+	}
+		
+	private void guardarRegistroPedidoReqLine(String nroPedido, Integer requisitionLineID) {
+		try {
+			String sql = "INSERT INTO ov_pedido_requisitionline (nro_pedido, m_requisitionline_id) VALUES (?, ?)";
+			PreparedStatement pst = DB.prepareStatement(sql, get_TrxName());
+			pst.setString(1, nroPedido);
+			pst.setInt(2, requisitionLineID);
+			pst.execute();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private String getCodCatalogo(Integer empresa, String nomIPad, String codPedido) {
