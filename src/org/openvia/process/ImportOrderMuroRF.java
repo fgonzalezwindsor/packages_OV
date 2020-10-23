@@ -50,6 +50,7 @@ public class ImportOrderMuroRF extends SvrProcess
 	private int				m_AD_Client_ID = 1000000;
 	/**	Organization to be imported to		*/
 	private int				m_AD_Org_ID = 1000000;
+	private int				m_C_BPartner_ID = 1001237;
 	/**	Delete old Imported				*/
 	//private boolean			m_deleteOldImported = false;
 	private StringBuffer sql = null;
@@ -82,8 +83,8 @@ public class ImportOrderMuroRF extends SvrProcess
 				m_AD_Client_ID = 1000000;
 			else if (name.equals("AD_Org_ID"))
 				m_AD_Org_ID = 1000000;
-			else if (name.equals("DeleteOldImported"))
-			;//	m_deleteOldImported = "Y".equals(para[i].getParameter());
+			else if (name.equals("C_BPartner_ID"))
+				m_C_BPartner_ID=1001237;//	m_deleteOldImported = "Y".equals(para[i].getParameter());
 			else if (name.equals("DocAction"))
 		;//		m_docAction = (String)para[i].getParameter();
 			else
@@ -119,12 +120,12 @@ public class ImportOrderMuroRF extends SvrProcess
 		//Venedero
 		log.fine("Set SalesRep_ID=" +actualizaSalesRep ());
 		commitEx();
-	
+		log.fine("tets"+m_C_BPartner_ID);
 	 ArrayList<String> ordenescompra = new ArrayList<String>(); 
 	// ArrayList<String> docerror = new ArrayList<String>();
 	// ArrayList<String> recorredocerror = new ArrayList<String>();
 		//	-- New Orders -----------------------------------------------------
-	String slqoc  = "Select Documentno, BPartnerValue from I_OrderB2C where i_isImported<>'Y' "+clientCheck +  " Group by DocumentNo, BPartnerValue";
+	String slqoc  = "Select Documentno, BPartnerValue from I_OrderB2C where i_isImported<>'Y' and C_BPartner_ID=1001237 "+clientCheck +  " Group by DocumentNo, BPartnerValue";
 	//obtener ordenes para importar
 	try
 	{
@@ -179,7 +180,7 @@ public class ImportOrderMuroRF extends SvrProcess
 							"	 COALESCE(M_product_ID, 0) M_product_ID,"+
 							" replace(description,'/','-') description, name as tipogt, ContactName formacgt,"+
 							" trim(upper(Address2)) as subtienda, ChargeName as vendedor, Coalesce (SalesRep_ID,0) SalesRep_ID , "+
-							" LineDescription as Generico, COALESCE(QtyOrdered,0) as Cantidad, COALESCE(PriceActual,0) Precio, Created, ProductValue, BPartnerValue, Address1, DOCTYPENAME, "+
+							" LineDescription as Generico, COALESCE(QtyOrdered,0) as Cantidad, COALESCE(PriceActual,0) Precio, Created, ProductValue, BPartnerValue, Address1, DOCTYPENAME, POReference,"+
 							" Address1, DOCTYPENAME, ov_org_id, C_ORDERMURO_id, NOMBRESHOPIFY, DIRECCIONSHOPIFY  "+
 							" from  I_OrderB2C where bpartnervalue='76281810' and documentNo='"+ ordenescompra.get(i)+"'";
 			//String direccion, rut, vendedor = "";
@@ -251,7 +252,7 @@ public class ImportOrderMuroRF extends SvrProcess
 							  
 						 }
 						 
-						 ob2c.setPOReference(rs.getString("documentno"));
+						 ob2c.setPOReference(rs.getString("POReference"));
 						 ob2c.setDateAcct(rs.getTimestamp("Created"));
 						 ob2c.set_CustomColumn("BPartnerValue", rs.getString("BPartnerValue"));
 						 ob2c.set_CustomColumn("Address1", rs.getString("Address1"));
@@ -304,6 +305,9 @@ public class ImportOrderMuroRF extends SvrProcess
 						X_C_OrderB2CLine obl = new X_C_OrderB2CLine  (getCtx() ,0,get_TrxName());
 						obl.setC_OrderB2C_ID(ob2c.getC_OrderB2C_ID());
 						obl.setLine(lineas*10);
+						obl.setM_Product_ID(rs.getInt("M_Product_ID"));
+						obl.setProductValue(rs.getString("ProductValue"));
+						obl.save();
 						BigDecimal cant = new BigDecimal (rs.getInt("Cantidad"));
 					//	log.fine("Precio=" + Integer.parseInt(DB.getSQLValueString(null, "Select coalesce((PriceList),0) from m_productprice where isactive='Y'  and M_PriceList_Version_ID=1000039 "+
 					//			" and m_product_id="+rs.getInt("M_Product_ID")) ));
@@ -345,7 +349,7 @@ public class ImportOrderMuroRF extends SvrProcess
 										" from m_requisition r2 "+
 										" inner join m_requisitionline rl on (r2.m_requisition_ID=rl.m_Requisition_ID) "+ 
 										" where r2.docstatus='CO' and rl.m_product_ID="+rs.getInt("M_Product_ID")+
-										 " and (rl.qty-rl.qtyused)>0 and r2.c_doctype_ID=1000569 and rl.liberada='N' )";
+										 " and (rl.qtyreserved)>0 and r2.c_doctype_ID=1000569 and rl.liberada='N' )";
 								
 									
 									try
@@ -451,7 +455,7 @@ public class ImportOrderMuroRF extends SvrProcess
 														+ "or R.OVERWRITEREQUISITION='Y') "+
 														" and  "+
 														" rl.m_product_ID="+rs.getInt("m_product_ID")+
-														" and (rl.qty-rl.qtyused)>0  "+
+														" and (rl.qtyreserved)>0  "+
 														" and  rl.LIBERADA='N' " ;
 												
 											
@@ -486,7 +490,7 @@ public class ImportOrderMuroRF extends SvrProcess
 																		" and r.c_bpartner_ID="+rs.getInt("C_BPartner_ID") +
 																		" and (r.c_bpartner_location_ID="+rs.getInt("c_bpartner_location_ID") +
 																		 " or R.OVERWRITEREQUISITION='Y') "+
-																		" and (rl.qty-rl.qtyused)>0"+
+																		" and (rl.qtyreserved)>0"+
 																		 " and  rl.LIBERADA='N' " ;
 																try
 																{
@@ -845,7 +849,7 @@ public class ImportOrderMuroRF extends SvrProcess
 													order.set_CustomColumn("USERFIRMCOM", 1003655); //vsandoval
 												//	order.set_CustomColumn("USERFIRMFIN", 1003303); //eumanzor
 													order.set_CustomColumn("FormaCompra", ob2c.get_Value("FormaCompra"));
-													order.set_CustomColumn("MedioCompra", ob2c.get_Value("MedioCompra"));
+													order.set_CustomColumn("MedioCompra", "Internet");
 													order.set_CustomColumn("VentaInvierno", "N");
 													
 													order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro")); 
@@ -926,7 +930,8 @@ public class ImportOrderMuroRF extends SvrProcess
 											 order.processIt(X_C_Order.DOCACTION_Complete);
 											  // order.completeIt();
 											  // order.save();
-											
+											order.set_CustomColumn("FIRMA2", "Y");
+											order.set_CustomColumn("FIRMA3", "Y");
 											order.save();
 											 order.setDocAction("CO");
 											 order.processIt ("CO");
@@ -939,7 +944,7 @@ public class ImportOrderMuroRF extends SvrProcess
 											
 											sql = new StringBuffer ("UPDATE I_OrderB2C "
 													  + "SET I_IsImported='Y' , processed='Y' "
-													  + "WHERE bpartnervalue='76281810' and Documentno='" + ob2c.getPOReference()+"'");
+													  + "WHERE bpartnervalue='76281810' and POReference='" + ob2c.getPOReference()+"'");
 													 
 												no = DB.executeUpdate(sql.toString(), get_TrxName());
 												if (no != 0)
