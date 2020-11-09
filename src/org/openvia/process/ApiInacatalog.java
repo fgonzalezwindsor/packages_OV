@@ -32,9 +32,9 @@ public class ApiInacatalog extends SvrProcess {
 	ApiIArticulosTyCs iArticulosTyCs = new ApiIArticulosTyCs();
 	ApiIArticulosLFams iArticulosLFams = new ApiIArticulosLFams();
 	ApiITarifasLins iTarifasLins = new ApiITarifasLins();
-	ApiICobros iCobros = new ApiICobros();
-	ApiIPedidosCentrals iPedidosCentrals = new ApiIPedidosCentrals();
-	ApiIPedidosCentralLins iPedidosCentralLins = new ApiIPedidosCentralLins();
+	//ApiICobros iCobros = new ApiICobros();
+	//ApiIPedidosCentrals iPedidosCentrals = new ApiIPedidosCentrals();
+	//ApiIPedidosCentralLins iPedidosCentralLins = new ApiIPedidosCentralLins();
 	
 	ConexioDBInaCatalog connInacatalog = new ConexioDBInaCatalog();
 	ConexioDBInaCatalogWind connInacatalogWind = new ConexioDBInaCatalogWind();
@@ -52,7 +52,7 @@ public class ApiInacatalog extends SvrProcess {
 		String semaforo = null;
 		Connection conn = connInacatalog.openConection();
 		Connection connWind = connInacatalogWind.openConection();
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 		PreparedStatement pst = conn.prepareStatement("SELECT datValor FROM iParametros WHERE codParametro = 'SemaforoInaCatalog'");
 		ResultSet rs = pst.executeQuery();
 		if (rs.next()) {
@@ -143,17 +143,17 @@ public class ApiInacatalog extends SvrProcess {
 			iTarifasLins.doIt();
 			System.out.println("Fin iTarifasLins");
 			
-			System.out.println("Inicio iCobros...");
-			iCobros.doIt();
-			System.out.println("Fin iCobros");
-			
-			System.out.println("Inicio iPedidosCentrals...");
-			iPedidosCentrals.doIt();
-			System.out.println("Fin iPedidosCentrals");
-			
-			System.out.println("Inicio iPedidosCentralLins...");
-			iPedidosCentralLins.doIt();
-			System.out.println("Fin iPedidosCentralLins");
+//			System.out.println("Inicio iCobros...");
+//			iCobros.doIt();
+//			System.out.println("Fin iCobros");
+//			
+//			System.out.println("Inicio iPedidosCentrals...");
+//			iPedidosCentrals.doIt();
+//			System.out.println("Fin iPedidosCentrals");
+//			
+//			System.out.println("Inicio iPedidosCentralLins...");
+//			iPedidosCentralLins.doIt();
+//			System.out.println("Fin iPedidosCentralLins");
 			
 			// Fin migracion Inacatalog
 			connWind = connInacatalogWind.openConection();
