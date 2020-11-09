@@ -106,6 +106,34 @@ public class X_OV_Prereserva extends PO implements I_OV_Prereserva, I_Persistent
 		else 
 			set_Value (COLUMNNAME_AD_User_ID, Integer.valueOf(AD_User_ID));
 	}
+	
+	public I_C_Order getC_Order() throws RuntimeException
+    {
+		return (I_C_Order)MTable.get(getCtx(), I_C_Order.Table_Name)
+			.getPO(getC_Order_ID(), get_TrxName());	}
+
+	/** Set Order.
+		@param C_Order_ID 
+		Order
+	  */
+	public void setC_Order_ID (int C_Order_ID)
+	{
+		if (C_Order_ID < 1) 
+			set_ValueNoCheck (COLUMNNAME_C_Order_ID, null);
+		else 
+			set_ValueNoCheck (COLUMNNAME_C_Order_ID, Integer.valueOf(C_Order_ID));
+	}
+
+	/** Get Order.
+		@return Order
+	  */
+	public int getC_Order_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_C_Order_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
 
 	/** Get User/Contact.
 		@return User within the system - Internal or Business Partner Contact
@@ -571,6 +599,107 @@ public class X_OV_Prereserva extends PO implements I_OV_Prereserva, I_Persistent
 		if (bd == null)
 			 return Env.ZERO;
 		return bd;
+	}
+	
+	/** Set Create lines from.
+	@param CreateFrom 
+	Process which will generate a new document lines based on an existing document
+	 */
+	public void setCreateFrom (String CreateFrom)
+	{
+		set_Value (COLUMNNAME_CreateFrom, CreateFrom);
+	}
+
+	/** Get Create lines from.
+		@return Process which will generate a new document lines based on an existing document
+	 */
+	public String getCreateFrom () 
+	{
+		return (String)get_Value(COLUMNNAME_CreateFrom);
+	}
+	
+	public I_C_BPartner getC_BPartner() throws RuntimeException
+    {
+		return (I_C_BPartner)MTable.get(getCtx(), I_C_BPartner.Table_Name)
+			.getPO(getC_BPartner_ID(), get_TrxName());	}
+
+	/** Set Business Partner .
+		@param C_BPartner_ID 
+		Identifies a Business Partner
+	  */
+	public void setC_BPartner_ID (int C_BPartner_ID)
+	{
+		if (C_BPartner_ID < 1) 
+			set_Value (COLUMNNAME_C_BPartner_ID, null);
+		else 
+			set_Value (COLUMNNAME_C_BPartner_ID, Integer.valueOf(C_BPartner_ID));
+	}
+
+	/** Get Business Partner .
+		@return Identifies a Business Partner
+	  */
+	public int getC_BPartner_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_C_BPartner_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public I_C_BPartner_Location getC_BPartner_Location() throws RuntimeException
+    {
+		return (I_C_BPartner_Location)MTable.get(getCtx(), I_C_BPartner_Location.Table_Name)
+			.getPO(getC_BPartner_Location_ID(), get_TrxName());	}
+
+	/** Set Partner Location.
+		@param C_BPartner_Location_ID 
+		Identifies the (ship to) address for this Business Partner
+	  */
+	public void setC_BPartner_Location_ID (int C_BPartner_Location_ID)
+	{
+		if (C_BPartner_Location_ID < 1) 
+			set_Value (COLUMNNAME_C_BPartner_Location_ID, null);
+		else 
+			set_Value (COLUMNNAME_C_BPartner_Location_ID, Integer.valueOf(C_BPartner_Location_ID));
+	}
+
+	/** Get Partner Location.
+		@return Identifies the (ship to) address for this Business Partner
+	  */
+	public int getC_BPartner_Location_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_C_BPartner_Location_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	public void setM_Requisition_ID(int M_Requisition_ID) {
+		if (M_Requisition_ID < 1) 
+			set_Value (COLUMNNAME_M_Requisition_ID, null);
+		else 
+			set_Value (COLUMNNAME_M_Requisition_ID, Integer.valueOf(M_Requisition_ID));
+	}
+
+	public int getM_Requisition_ID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Requisition_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+	
+	public void setM_MRequisition_ID(int M_MRequisition_ID) {
+		if (M_MRequisition_ID < 1) 
+			set_Value (COLUMNNAME_M_MRequisition_ID, null);
+		else 
+			set_Value (COLUMNNAME_M_MRequisition_ID, Integer.valueOf(M_MRequisition_ID));
+	}
+
+	public int getM_MRequisition_ID() {
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_MRequisition_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
 	}
 
 }

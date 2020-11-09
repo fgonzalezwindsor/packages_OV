@@ -81,6 +81,8 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 	/** Lines						*/
 	private MPrereservaLine[]		m_lines = null;
 	
+	private MPrereserva[]	m_prereservas = null;
+	
 	/**
 	 * 	Get Lines
 	 *	@return array of lines
@@ -320,6 +322,30 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 			if (!DocAction.STATUS_InProgress.equals(status))
 				return status;
 		}
+		
+		// 1000572: PreVenta - Reserva Física
+		if (getC_DocType_ID() == 1000572 && getM_Requisition_ID() == 0) {
+			m_processMsg = "Debe seleccionar Reserva Fisica.";
+			return DocAction.STATUS_Invalid;
+		}
+		
+		// 1000573: PreVenta - MultiRut
+		if (getC_DocType_ID() == 1000573 && getM_MRequisition_ID() == 0) {
+			m_processMsg = "Debe seleccionar Reserva Fisica.";
+			return DocAction.STATUS_Invalid;
+		}
+		
+		// 1000571: PreVenta - Nota de Venta
+		if (getC_DocType_ID() == 1000571) {
+			if (getC_BPartner_ID() == 0) {
+				m_processMsg = "Debe ingresar Cliente.";
+				return DocAction.STATUS_Invalid;
+			}
+			if (getC_BPartner_Location_ID() == 0) {
+				m_processMsg = "Debe ingresar Dirección de Cliente.";
+				return DocAction.STATUS_Invalid;
+			}
+		}
 
 		m_processMsg = ModelValidationEngine.get().fireDocValidate(this, ModelValidator.TIMING_BEFORE_COMPLETE);
 		if (m_processMsg != null)
@@ -361,6 +387,24 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 				setDocumentNo(value);
 		}
 	}
+	
+	/**
+	 * 	Set Processed.
+	 * 	Propagate to Lines/Taxes
+	 *	@param processed processed
+	 */
+	public void setProcessed (boolean processed)
+	{
+		super.setProcessed (processed);
+		if (get_ID() == 0)
+			return;
+		String sql = "UPDATE OV_PrereservaLine SET Processed='"
+			+ (processed ? "Y" : "N")
+			+ "' WHERE OV_Prereserva_ID=" + getOV_Prereserva_ID();
+		int noLine = DB.executeUpdate(sql, get_TrxName());
+		m_lines = null;
+		log.fine(processed + " - Lines=" + noLine);
+	}	//	setProcessed
 
 	/**
 	 * 	Void Document.
@@ -408,11 +452,6 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 			BigDecimal finalQty = line.getQty();
 			if (line.getC_OrderLine_ID() == 0)
 				finalQty = Env.ZERO;
-			else
-			{
-				MOrderLine ol = new MOrderLine (getCtx(), line.getC_OrderLine_ID(), get_TrxName());
-				finalQty = ol.getQtyOrdered();
-			}
 			//	final qty is not line qty
 			if (finalQty.compareTo(line.getQty()) != 0)
 			{
@@ -581,5 +620,32 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 			|| DOCSTATUS_Closed.equals(ds)
 			|| DOCSTATUS_Reversed.equals(ds);
 	}	//	isComplete
+	
+	public MPrereserva[] getPrereservasByOrder(int C_Order_ID) {
+		List<MPrereserva> list = new Query(getCtx(), I_OV_Prereserva.Table_Name, "C_Order_ID=?", get_TrxName())
+				.setParameters(C_Order_ID)
+				.list();
+		m_prereservas = new MPrereserva[list.size()];
+		list.toArray(m_prereservas);
+		return m_prereservas;
+	}
+	
+	/**
+	 * 	Set Business Partner (Ship)
+	 *	@param C_BPartner_ID bpartner
+	 */
+	public void setC_BPartner_ID (int C_BPartner_ID)
+	{
+		super.setC_BPartner_ID (C_BPartner_ID);
+	}	//	setC_BPartner_ID
+	
+	/**
+	 * 	Set Business Partner Location (Ship+Bill)
+	 *	@param C_BPartner_Location_ID bp location
+	 */
+	public void setC_BPartner_Location_ID (int C_BPartner_Location_ID)
+	{
+		super.setC_BPartner_Location_ID (C_BPartner_Location_ID);
+	}	//	setC_BPartner_Location_ID
 	
 }	//	MPrereserva

@@ -11,7 +11,8 @@ import java.util.Date;
 import org.compiere.process.SvrProcess;
 
 public class ApiInacatalog extends SvrProcess {
-	
+	// Insertar Clientes desde inacatalog
+	ReadInaCatalog readInacatalog = new ReadInaCatalog();
 	LimpiaInaCatalog limpiar = new LimpiaInaCatalog();
 	ApiICatalogos iCatalogos = new ApiICatalogos();
 	ApiIAgentes iAgentes = new ApiIAgentes();
@@ -46,6 +47,8 @@ public class ApiInacatalog extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
+		readInacatalog.insertarClientes();
+		
 		String semaforo = null;
 		Connection conn = connInacatalog.openConection();
 		Connection connWind = connInacatalogWind.openConection();

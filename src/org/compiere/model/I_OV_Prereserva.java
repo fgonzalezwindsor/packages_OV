@@ -76,6 +76,21 @@ public interface I_OV_Prereserva
 	public int getAD_User_ID();
 
 	public I_AD_User getAD_User() throws RuntimeException;
+	
+	/** Column name C_Order_ID */
+    public static final String COLUMNNAME_C_Order_ID = "C_Order_ID";
+
+	/** Set Order.
+	  * Order
+	  */
+	public void setC_Order_ID (int C_Order_ID);
+
+	/** Get Order.
+	  * Order
+	  */
+	public int getC_Order_ID();
+
+	public I_C_Order getC_Order() throws RuntimeException;
 
     /** Column name C_DocType_ID */
     public static final String COLUMNNAME_C_DocType_ID = "C_DocType_ID";
@@ -358,4 +373,73 @@ public interface I_OV_Prereserva
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+	
+	/** Column name CreateFrom */
+    public static final String COLUMNNAME_CreateFrom = "CreateFrom";
+
+	/** Set Create lines from.
+	  * Process which will generate a new document lines based on an existing document
+	  */
+	public void setCreateFrom (String CreateFrom);
+
+	/** Get Create lines from.
+	  * Process which will generate a new document lines based on an existing document
+	  */
+	public String getCreateFrom();
+
+   /** Column name C_BPartner_ID */
+   public static final String COLUMNNAME_C_BPartner_ID = "C_BPartner_ID";
+
+	/** Set Business Partner .
+	  * Identifies a Business Partner
+	  */
+	public void setC_BPartner_ID (int C_BPartner_ID);
+
+	/** Get Business Partner .
+	  * Identifies a Business Partner
+	  */
+	public int getC_BPartner_ID();
+
+	public I_C_BPartner getC_BPartner() throws RuntimeException;
+
+   /** Column name C_BPartner_Location_ID */
+   public static final String COLUMNNAME_C_BPartner_Location_ID = "C_BPartner_Location_ID";
+
+	/** Set Partner Location.
+	  * Identifies the (ship to) address for this Business Partner
+	  */
+	public void setC_BPartner_Location_ID (int C_BPartner_Location_ID);
+
+	/** Get Partner Location.
+	  * Identifies the (ship to) address for this Business Partner
+	  */
+	public int getC_BPartner_Location_ID();
+
+	public I_C_BPartner_Location getC_BPartner_Location() throws RuntimeException;
+	
+	/** Column name M_Requisition_ID */
+	public static final String COLUMNNAME_M_Requisition_ID = "M_Requisition_ID";
+
+	/** Set Requisition .
+	 * Identifies a Requisition
+	*/
+	public void setM_Requisition_ID (int M_Requisition_ID);
+
+	/** Get Requisition .
+	 * Identifies a Requisition
+	*/
+	public int getM_Requisition_ID();
+	
+	/** Column name M_MRequisition_ID */
+	public static final String COLUMNNAME_M_MRequisition_ID = "M_MRequisition_ID";
+
+	/** Set MRequisition .
+	 * Identifies a MultiRutRequisition
+	*/
+	public void setM_MRequisition_ID (int M_MRequisition_ID);
+
+	/** Get MultiRutRequisition .
+	 * Identifies a MultiRutRequisition
+	*/
+	public int getM_MRequisition_ID();
 }

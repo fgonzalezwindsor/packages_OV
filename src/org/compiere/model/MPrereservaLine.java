@@ -17,7 +17,9 @@
 package org.compiere.model;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Properties;
@@ -37,6 +39,9 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 	 * 
 	 */
 	private static final long serialVersionUID = -2567343619431184322L;
+	
+	/**	Product					*/
+	private MProduct 		m_product = null;
 
 	/**
 	 * Get corresponding Prereserva Line for given Order Line
@@ -248,6 +253,13 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 			log.saveError("ParentComplete", Msg.translate(getCtx(), "OV_PrereservaLine"));
 			return false;
 		}
+		
+		if (getQty().compareTo(getC_OrderLine().getQtyEntered()) > 0) {
+			throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
+//			log.saveError("Error", "Cantidad no puede ser mayor a la Cantidad de la Orden");
+//			return false;
+		}
+		
 		if (getLine() == 0)
 		{
 			String sql = "SELECT COALESCE(MAX(Line),0)+10 FROM OV_PrereservaLine WHERE OV_Prereserva_ID=?";
@@ -295,6 +307,54 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 			return success;
 		return updateHeader();
 	}	//	afterDelete
+	
+	/**
+	 * 	Set Product
+	 *	@param product product
+	 */
+	public void setProduct (MProduct product)
+	{
+		m_product = product;
+		if (m_product != null)
+		{
+			setM_Product_ID(m_product.getM_Product_ID());
+			setC_UOM_ID (m_product.getC_UOM_ID());
+		}
+		else
+		{
+			setM_Product_ID(0);
+			set_ValueNoCheck ("C_UOM_ID", null);
+		}
+		setM_AttributeSetInstance_ID(0);
+	}	//	setProduct
+
+	
+	/**
+	 * 	Set M_Product_ID
+	 *	@param M_Product_ID product
+	 *	@param setUOM set also UOM
+	 */
+	public void setM_Product_ID (int M_Product_ID, boolean setUOM)
+	{
+		if (setUOM)
+			setProduct(MProduct.get(getCtx(), M_Product_ID));
+		else
+			super.setM_Product_ID (M_Product_ID);
+		setM_AttributeSetInstance_ID(0);
+	}	//	setM_Product_ID
+	
+	/**
+	 * 	Set Product and UOM
+	 *	@param M_Product_ID product
+	 *	@param C_UOM_ID uom
+	 */
+	public void setM_Product_ID (int M_Product_ID, int C_UOM_ID)
+	{
+		super.setM_Product_ID (M_Product_ID);
+		if (C_UOM_ID != 0)
+			super.setC_UOM_ID(C_UOM_ID);
+		setM_AttributeSetInstance_ID(0);
+	}	//	setM_Product_ID
 	
 	@Override
 	public I_M_Product getM_Product()

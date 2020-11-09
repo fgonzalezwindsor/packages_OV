@@ -46,7 +46,7 @@ public class ApiInacatalogCyP extends SvrProcess {
 	protected String doIt() throws Exception {
 		String semaforo = null;
 		Connection conn = connInacatalog.openConection();
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 		PreparedStatement pst = conn.prepareStatement("SELECT datValor FROM iParametros WHERE codParametro = 'SemaforoInaCatalog'");
 		ResultSet rs = pst.executeQuery();
 		if (rs.next()) {

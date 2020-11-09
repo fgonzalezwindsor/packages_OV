@@ -110,6 +110,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+		/**
+		 * 1 Nota Venta Normal: se inserta en ADempiere como venta valida stock y reserva fisica (C_Order)
+		 * 2 Nota de Venta 72 Hora: se inserta en ADempiere con campo PAGO72HORAS=Y valida stock y reserva fisica (C_Order)
+		 * 3 Nota Pre-Venta: se inserta en ADempiere, no valida stock ni reserva fisica (C_Order)
+		 * 4 Reserva Física: (M_Requisition)
+		 * 5 Propuesta: (No se inserta en ADempiere)
+		 */
 
 		// Insertar Pedidos desde inacatalog
 		JSONArray jsonArrayPedido = readJsonArrayFromUrl("http://190.215.113.91/InaCatalogAPI/Api/iPedidos");
@@ -122,8 +130,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 							&& jsonObjPedido.get(I_iPedidos.COLUMNA_DATESTADOPEDIDO).toString().equals("Traspasar")) {
 						nroPedido = jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString();
 						// codTipoVenta = 4 no pasan a ADempiere
-						if (!jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("4")) {
-							if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
+						if (!jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("5")) {
+							if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("4")) { // Reserva Física
 								StringBuffer s_sql = new StringBuffer();
 								// C_DocType_id = 1000111 Reserva Fisica
 								s_sql.append("SELECT r.M_Requisition_ID")
@@ -143,6 +151,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								} else {
 									requisition = new MRequisition(getCtx(), 0, get_TrxName());
 									requisition.setAD_Org_ID(m_AD_Org_ID);
+									requisition.set_CustomColumn("IsSotrx", "Y");
 									requisition.setC_DocType_ID(1000111); // 1000111: Reserva Fisica
 									requisition.setDocumentNo(null);
 									requisition.setDateRequired(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
@@ -212,7 +221,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									MProduct product = productByValue(lin.getCodArticulo());
 									s_sql.append("SELECT rl.M_RequisitionLine_ID, rl.QtyReserved")
 											.append(" FROM M_RequisitionLine rl")
-											.append(" AND rl.M_Product_ID = ").append(product.getM_Product_ID())
+											.append(" WHERE rl.M_Product_ID = ").append(product.getM_Product_ID())
 											.append(" AND rl.M_Requisition_ID = ").append(requisition.getM_Requisition_ID())
 											.append(" ORDER BY rl.Created");
 									pst = DB.prepareStatement(s_sql.toString(), get_TrxName());
@@ -225,6 +234,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											// guarda registro ov_pedido_requisitionline
 											if (tieneRequisition)
 												guardarRegistroPedidoReqLine(nroPedido, requisitionLine.getM_RequisitionLine_ID());
+										} else {
+											comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 										}
 									} else {
 										requisitionLine = new MRequisitionLine(requisition);
@@ -266,6 +277,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											// guarda registro ov_pedido_requisitionline
 											if (tieneRequisition)
 												guardarRegistroPedidoReqLine(nroPedido, requisitionLine.getM_RequisitionLine_ID());
+										} else {
+											comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 										}
 									}
 									rs.close();
@@ -291,19 +304,19 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								order.set_CustomColumn("firma2", "Y"); // comercial
 								order.set_CustomColumn("firma3", "N"); // finanzas
 								order.set_CustomColumn("mediocompra", "InaCatalog");
-								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) { // Nota Pre-Venta
+								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
 									// 1000048: Orden de Pre-Venta
 									order.setC_DocType_ID(1000048);
 									order.setC_DocTypeTarget_ID(1000048);
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
 									order.set_CustomColumn("CODTARIFAINA", getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("0")) { // Nota Venta Normal
+								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota Venta Normal
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
 									order.set_CustomColumn("CODTARIFAINA", getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota de Venta 72 Horas
+								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) { // Nota de Venta 72 Hora
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
@@ -313,7 +326,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								}
 								order.set_CustomColumn("VENTAINVIERNO", "N");
 								order.setDocumentNo(null);
-								order.save();
+								if (!order.save())
+									comun.registrarLog("iPedidos", 500, "Error al insertar pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 
 								List<IPedidosLinsModel> listaLinsPedidos = new ArrayList<IPedidosLinsModel>();
 								JSONArray jsonArrayLine = readJsonArrayFromUrl(
@@ -331,6 +345,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										lins.setDesLinPed(jsonObjLine.get(I_iPedidosLins.COLUMNA_DESLINPED).toString());
 										lins.setCanLinPed(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_CANLINPED).toString()));
 										lins.setPreLinPed(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_PRELINPED).toString()));
+										lins.setTpcDto01(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_TPCDTO01).toString()));
+										lins.setTpcDto02(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_TPCDTO02).toString()));
 										listaLinsPedidos.add(lins);
 									}
 								}
@@ -340,6 +356,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									hasSet.add(lin.getCodArticulo());
 								}
 
+								// Se juntan productos duplicados
 								List<IPedidosLinsModel> listaFinal = new ArrayList<IPedidosLinsModel>();
 								for (String codArticulo : hasSet) {
 									List<IPedidosLinsModel> listTmp = null;
@@ -357,7 +374,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									listaFinal.add(listTmp.get(0));
 								}
 								
-								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) {
+								// 3 Nota Pre-Venta: no valida stock ni reserva fisica.
+								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
 									for (IPedidosLinsModel lin : listaFinal) {
 										MOrderLine orderLine = new MOrderLine(order);
 										MProduct product = productByValue(lin.getCodArticulo());
@@ -367,9 +385,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										orderLine.setDescription(lin.getObsLinPed());
 										orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
 										orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
-										orderLine.setPriceActual(new BigDecimal(lin.getPreLinPed()));
-										orderLine.setPriceEntered(new BigDecimal(lin.getPreLinPed()));
-										orderLine.save();
+										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+										BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+										orderLine.setPriceActual(precioFinal);
+										orderLine.setPriceEntered(precioFinal);
+										orderLine.setPriceList(priceList);
+										if (!orderLine.save())
+											comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 									}
 								} else {
 									for (IPedidosLinsModel lin : listaFinal) {
@@ -451,9 +476,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 													orderLine.setQtyEntered(entry.getValue());
 													orderLine.setQtyOrdered(entry.getValue());
 												}
-												orderLine.setPriceActual(new BigDecimal(lin.getPreLinPed()));
-												orderLine.setPriceEntered(new BigDecimal(lin.getPreLinPed()));
-												orderLine.save();
+												BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+												BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+												BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+												BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+												BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+												orderLine.setPriceActual(precioFinal);
+												orderLine.setPriceEntered(precioFinal);
+												orderLine.setPriceList(priceList);
+												if (!orderLine.save())
+													comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 											}
 										} else {
 											MOrderLine orderLine = new MOrderLine(order);
@@ -487,9 +519,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 												orderLine.set_CustomColumn("DEMAND", new BigDecimal(lin.getCanLinPed()));
 												orderLine.set_CustomColumn("NOTPRINT", "Y");
 											}
-											orderLine.setPriceActual(new BigDecimal(lin.getPreLinPed()));
-											orderLine.setPriceEntered(new BigDecimal(lin.getPreLinPed()));
-											orderLine.save();
+											BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+											BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+											BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+											BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+											BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+											orderLine.setPriceActual(precioFinal);
+											orderLine.setPriceEntered(precioFinal);
+											orderLine.setPriceList(priceList);
+											if (!orderLine.save())
+												comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 										}
 									}
 								}
@@ -682,7 +721,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 		return product;
 	}
 
-	private void insertarClientes() throws Exception {
+	public void insertarClientes() throws Exception {
+		System.out.println("Insertar Clientes nuevos en ADempiere");
 		for (IClientesModel cliente : clientes.clientesNuevos()) {
 			MBPartner bp = new MBPartner(getCtx(), 0, get_TrxName());
 			bp.setAD_Org_ID(m_AD_Org_ID);
@@ -705,7 +745,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						MBPartnerLocation bpLoc = new MBPartnerLocation(bp);
 						bpLoc.setAD_Org_ID(m_AD_Org_ID);
 						bpLoc.setName(jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString());
-						bpLoc.save();
+						if (!bpLoc.save())
+							comun.registrarLog("iClientesLDirs", 500, "Error al insertar direccion cliente " + cliente.getCodCliente() + " direccion " + jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString(), "", "", "");
 					}
 				}
 
@@ -720,13 +761,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						MUser user = new MUser(bp);
 						user.setAD_Org_ID(m_AD_Org_ID);
 						user.setName(jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString());
-						user.save();
+						if (!user.save())
+							comun.registrarLog("iClientesLContactos", 500, "Error al insertar contacto cliente " + cliente.getCodCliente() + " contacto " + jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString(), "", "", "");
 					}
 				}
 				
 				// Actualiza Cliente importado
 				cliente.setFlaExpCliente("1");
 				clientes.apiPutCliente(cliente);
+			} else {
+				comun.registrarLog("iClientes", 500, "Error al insertar cliente " + cliente.getCodCliente(), "", "", "");
 			}
 		}
 	}
