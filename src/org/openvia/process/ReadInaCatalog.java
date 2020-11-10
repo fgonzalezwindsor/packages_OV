@@ -26,6 +26,7 @@ import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.methods.PutMethod;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
+import org.compiere.model.MLocation;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPaymentTerm;
@@ -34,6 +35,7 @@ import org.compiere.model.MRequisition;
 import org.compiere.model.MRequisitionLine;
 import org.compiere.model.MUser;
 import org.compiere.model.X_C_Order;
+import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.DB;
@@ -164,7 +166,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									requisition.setDescription(jsonObjPedido.get(I_iPedidos.COLUMNA_OBSPEDIDO).toString());
 									requisition.set_CustomColumn("C_BPartner_ID", bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
 									requisition.set_CustomColumn("c_bpartner_location_ID", Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
-									requisition.set_CustomColumn("POREFERENCE", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido);
+									requisition.set_CustomColumn("documentnoinacat", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido);
 									requisition.set_CustomColumn("inacatalog", "Y");
 									requisition.save();
 								}
@@ -287,10 +289,13 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 							} else {
 								MOrder order = new MOrder(getCtx(), 0, get_TrxName());
 								order.setAD_Org_ID(m_AD_Org_ID);
-								order.setPOReference(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
+								order.set_CustomColumn("documentnoinacat", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
 								order.setDateOrdered(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
 								order.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
-								order.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
+								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
+									order.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(getCtx(), order.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
+								else
+									order.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
 								order.setSalesRep_ID(salesRepByBPartner(jsonObjPedido.get(I_iPedidos.COLUMNA_CODAGENTE).toString()));
 								order.setC_PaymentTerm_ID(paymentTermByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODFORMAPAGO).toString()).getC_PaymentTerm_ID());
 								order.setC_Currency_ID(228);
@@ -330,13 +335,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									comun.registrarLog("iPedidos", 500, "Error al insertar pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 
 								List<IPedidosLinsModel> listaLinsPedidos = new ArrayList<IPedidosLinsModel>();
-								JSONArray jsonArrayLine = readJsonArrayFromUrl(
-										"http://190.215.113.91/InaCatalogAPI/Api/iPedidosLins?empresa="
-												+ jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + "&nomipad="
-												+ jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + "&codpedido="
-												+ jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO));
-								if (jsonArrayLine != null && jsonArrayLine.size() > 0
-										&& !jsonArrayLine.get(0).toString().equals("[]")) {
+								JSONArray jsonArrayLine = readJsonArrayFromUrl("http://190.215.113.91/InaCatalogAPI/Api/iPedidosLins?empresa=" + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + "&nomipad="	+ jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + "&codpedido="	+ jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO));
+								if (jsonArrayLine != null && jsonArrayLine.size() > 0 && !jsonArrayLine.get(0).toString().equals("[]")) {
 									for (int j = 0; j < jsonArrayLine.size(); j++) {
 										IPedidosLinsModel lins = new IPedidosLinsModel();
 										JSONObject jsonObjLine = (JSONObject) jsonArrayLine.get(j);
@@ -532,6 +532,53 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										}
 									}
 								}
+								// Definir Lista de precios
+								/** Si M_Product.catalogo
+								 *  Es Preventa Liquidacion --> m_pricelist_id 1000014
+     								Es Preventa Normal --> m_pricelist_id 1000000
+     								Es Liquidacion --> m_pricelist_id 1000014
+     								Es Normal --> m_pricelist_id 1000000
+     								Es Marcas Propias -- > lista de precios 1000000
+								 */
+								String catalogo = "";
+								int MPriceListID = 0;
+								for (MOrderLine line : order.getLines()) {
+									if (catalogo.equals("") && getCatalogoProduct(line.getM_Product_ID()) != null) {
+										catalogo = getCatalogoProduct(line.getM_Product_ID());
+									}
+									if (catalogo.equals("Preventa Liquidacion") || catalogo.equals("Liquidacion")) {
+										MPriceListID = 1000014;
+										break;
+									}
+									if (catalogo.equals("Preventa Normal") || catalogo.equals("Normal") || catalogo.equals("Marcas Propias")) {
+										MPriceListID = 1000000;
+									}
+									
+								}
+								if (MPriceListID != 0) {
+									order.setM_PriceList_ID(MPriceListID);
+									order.saveEx();
+								}
+								
+								// Completar Documento
+								boolean completarOrden = true;
+								catalogo = "";
+								for (MOrderLine line : order.getLines()) {
+									if (line.get_Value("DEMAND") != null && new BigDecimal(line.get_Value("DEMAND").toString()).compareTo(BigDecimal.ZERO) > 0) {
+										completarOrden = false;
+										break;
+									}
+									if (catalogo.equals("") && getCatalogoProduct(line.getM_Product_ID()) != null) {
+										catalogo = getCatalogoProduct(line.getM_Product_ID());
+									}
+									if (!catalogo.equals(getCatalogoProduct(line.getM_Product_ID()))) {
+										completarOrden = false;
+										break;
+									}
+									
+								}
+								if (completarOrden)
+									order.processIt(DocAction.ACTION_Complete);
 							}
 						}
 						// Deja pedido con flaExpPedido=1
@@ -773,6 +820,21 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 				comun.registrarLog("iClientes", 500, "Error al insertar cliente " + cliente.getCodCliente(), "", "", "");
 			}
 		}
+	}
+	
+	private String getCatalogoProduct(int MProductID) {
+		String catalogo = null;
+		try {
+			PreparedStatement pst = DB.prepareStatement("SELECT catalogo FROM M_Product WHERE M_Product_ID = ?", get_TrxName());
+			pst.setInt(1, MProductID);
+			ResultSet rs = pst.executeQuery();
+			if (rs.next()) {
+				catalogo = rs.getString("catalogo");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return catalogo;
 	}
 
 }
