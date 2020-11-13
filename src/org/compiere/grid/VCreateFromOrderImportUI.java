@@ -424,9 +424,9 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 
 		StringBuffer sql = new StringBuffer("SELECT o.C_Order_ID,").append(display)
 		.append(" FROM C_Order o");
-		sql.append(" INNER JOIN AD_Org org ON (o.AD_Org_ID=org.AD_Org_ID)");
+		sql.append(" INNER JOIN AD_Org org ON (o.AD_Org_ID=org.AD_Org_ID) ");
 		sql.append(" INNER JOIN C_BPartner bp ON (o.C_BPartner_ID=bp.C_BPartner_ID) ");
-		sql.append(" INNER JOIN C_OrderLine ol ON (ol.C_Order_ID=o.C_Order_ID)");
+		sql.append(" INNER JOIN C_OrderLine ol ON (ol.C_Order_ID=o.C_Order_ID) AND ol.qtydelivered = 0 ");
 		sql.append(" INNER JOIN C_DocType doc ON (o.C_DocType_ID=doc.C_DocType_ID) ");
 		sql.append(" LEFT Join C_PaymentTerm pter ON (o.C_PaymentTerm_ID=pter.C_PaymentTerm_ID) ");
 		sql.append(" WHERE o.Processed='Y' AND o.DocStatus IN ('CO','CL')  and o.AD_Client_ID="	+ Env.getAD_Client_ID(Env.getCtx()));

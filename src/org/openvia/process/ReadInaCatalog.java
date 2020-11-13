@@ -314,20 +314,20 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									order.setC_DocType_ID(1000048);
 									order.setC_DocTypeTarget_ID(1000048);
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-									order.set_CustomColumn("CODTARIFAINA", getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
+									order.set_CustomColumn("CODTARIFAINA", new BigDecimal(getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString())));
 								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota Venta Normal
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-									order.set_CustomColumn("CODTARIFAINA", getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
+									order.set_CustomColumn("CODTARIFAINA", new BigDecimal(getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString())));
 								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("2")) { // Nota de Venta 72 Hora
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
 									order.set_CustomColumn("PAGO72HORAS", "Y");
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
-									order.set_CustomColumn("CODTARIFAINA", getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
+									order.set_CustomColumn("CODTARIFAINA", new BigDecimal(getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString())));
 								}
 								order.set_CustomColumn("VENTAINVIERNO", "N");
 								order.setDocumentNo(null);
@@ -575,10 +575,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										completarOrden = false;
 										break;
 									}
-									
 								}
-								if (completarOrden)
-									order.processIt(DocAction.ACTION_Complete);
+								if (completarOrden) {
+									order.setDocAction("CO");
+									if(order.processIt ("CO"))
+									{
+										order.save();
+									}
+//									if (order.processIt(DocAction.ACTION_Complete))
+//										order.saveEx();
+								}
 							}
 						}
 						// Deja pedido con flaExpPedido=1

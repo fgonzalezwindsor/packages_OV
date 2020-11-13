@@ -324,10 +324,10 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 		}
 		
 		// 1000572: PreVenta - Reserva Física
-		if (getC_DocType_ID() == 1000572 && getM_Requisition_ID() == 0) {
+		/*if (getC_DocType_ID() == 1000572 && getM_Requisition_ID() == 0) {
 			m_processMsg = "Debe seleccionar Reserva Fisica.";
 			return DocAction.STATUS_Invalid;
-		}
+		}*/
 		
 		// 1000573: PreVenta - MultiRut
 		if (getC_DocType_ID() == 1000573 && getM_MRequisition_ID() == 0) {
