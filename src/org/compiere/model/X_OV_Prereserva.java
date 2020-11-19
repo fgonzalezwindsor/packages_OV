@@ -701,5 +701,33 @@ public class X_OV_Prereserva extends PO implements I_OV_Prereserva, I_Persistent
 			 return 0;
 		return ii.intValue();
 	}
+	
+	public I_AD_User getSalesRep() throws RuntimeException
+    {
+		return (I_AD_User)MTable.get(getCtx(), I_AD_User.Table_Name)
+			.getPO(getSalesRep_ID(), get_TrxName());	}
+
+	/** Set Sales Representative.
+		@param SalesRep_ID 
+		Sales Representative or Company Agent
+	  */
+	public void setSalesRep_ID (int SalesRep_ID)
+	{
+		if (SalesRep_ID < 1) 
+			set_Value (COLUMNNAME_SalesRep_ID, null);
+		else 
+			set_Value (COLUMNNAME_SalesRep_ID, Integer.valueOf(SalesRep_ID));
+	}
+
+	/** Get Sales Representative.
+		@return Sales Representative or Company Agent
+	  */
+	public int getSalesRep_ID () 
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_SalesRep_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
 
 }

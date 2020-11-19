@@ -387,9 +387,13 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
 										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
 										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
-										BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+										BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
+										System.out.println("desc1: " + desc1);
+										System.out.println("desc2: " + desc2);
 										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+										System.out.println("precioConDesc1: " + precioConDesc1);
 										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+										System.out.println("precioFinal: " + precioFinal);
 										orderLine.setPriceActual(precioFinal);
 										orderLine.setPriceEntered(precioFinal);
 										orderLine.setPriceList(priceList);
@@ -777,53 +781,53 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 	public void insertarClientes() throws Exception {
 		System.out.println("Insertar Clientes nuevos en ADempiere");
 		for (IClientesModel cliente : clientes.clientesNuevos()) {
-			MBPartner bp = new MBPartner(getCtx(), 0, get_TrxName());
-			bp.setAD_Org_ID(m_AD_Org_ID);
-			bp.setValue(cliente.getCodCliente());
-			bp.setName(cliente.getNomCliente().isEmpty()
-					? cliente.getCodCliente().toString()
-					: cliente.getNomCliente());
-			bp.setC_BP_Group_ID(1000005); // 1000005: Clientes
-			bp.setIsCustomer(true);
-			String codCliente = cliente.getCodCliente();
-			if (bp.save()) {
-				// Insertar Direcciones Cliente
-				JSONArray jsonArrayDir = readJsonArrayFromUrl(
-						"http://190.215.113.91/InaCatalogAPI/api/iClientesLDirs?empresa=1&codcliente="
-								+ codCliente.replaceAll(" ", "%20"));
-				if (jsonArrayDir != null && jsonArrayDir.size() > 0
-						&& !jsonArrayDir.get(0).toString().equals("[]")) {
-					for (int ii = 0; ii < jsonArrayDir.size(); ii++) {
-						JSONObject jsonObjDir = (JSONObject) jsonArrayDir.get(ii);
-						MBPartnerLocation bpLoc = new MBPartnerLocation(bp);
-						bpLoc.setAD_Org_ID(m_AD_Org_ID);
-						bpLoc.setName(jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString());
-						if (!bpLoc.save())
-							comun.registrarLog("iClientesLDirs", 500, "Error al insertar direccion cliente " + cliente.getCodCliente() + " direccion " + jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString(), "", "", "");
+			if (bPartnerByValue(cliente.getCodCliente()) == null) {
+				MBPartner bp = new MBPartner(getCtx(), 0, get_TrxName());
+				bp.setAD_Org_ID(m_AD_Org_ID);
+				bp.setValue(cliente.getCodCliente());
+				bp.setName(cliente.getNomCliente().isEmpty() ? cliente.getCodCliente().toString() : cliente.getNomCliente());
+				bp.setC_BP_Group_ID(1000005); // 1000005: Clientes
+				bp.setIsCustomer(true);
+				String codCliente = cliente.getCodCliente();
+				if (bp.save()) {
+					// Insertar Direcciones Cliente
+					JSONArray jsonArrayDir = readJsonArrayFromUrl(
+							"http://190.215.113.91/InaCatalogAPI/api/iClientesLDirs?empresa=1&codcliente="
+									+ codCliente.replaceAll(" ", "%20"));
+					if (jsonArrayDir != null && jsonArrayDir.size() > 0
+							&& !jsonArrayDir.get(0).toString().equals("[]")) {
+						for (int ii = 0; ii < jsonArrayDir.size(); ii++) {
+							JSONObject jsonObjDir = (JSONObject) jsonArrayDir.get(ii);
+							MBPartnerLocation bpLoc = new MBPartnerLocation(bp);
+							bpLoc.setAD_Org_ID(m_AD_Org_ID);
+							bpLoc.setName(jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString());
+							if (!bpLoc.save())
+								comun.registrarLog("iClientesLDirs", 500, "Error al insertar direccion cliente " + cliente.getCodCliente() + " direccion " + jsonObjDir.get(I_iClientesLDirs.COLUMNA_NOMDIRCLI).toString(), "", "", "");
+						}
 					}
-				}
 
-				// Insertar Contactos Cliente
-				JSONArray jsonArrayContacto = readJsonArrayFromUrl(
-						"http://190.215.113.91/InaCatalogAPI/api/iClientesLContactos?empresa=1&codcliente="
-								+ codCliente.replaceAll(" ", "%20"));
-				if (jsonArrayContacto != null && jsonArrayContacto.size() > 0
-						&& !jsonArrayContacto.get(0).toString().equals("[]")) {
-					for (int iii = 0; iii < jsonArrayContacto.size(); iii++) {
-						JSONObject jsonObjContacto = (JSONObject) jsonArrayContacto.get(iii);
-						MUser user = new MUser(bp);
-						user.setAD_Org_ID(m_AD_Org_ID);
-						user.setName(jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString());
-						if (!user.save())
-							comun.registrarLog("iClientesLContactos", 500, "Error al insertar contacto cliente " + cliente.getCodCliente() + " contacto " + jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString(), "", "", "");
+					// Insertar Contactos Cliente
+					JSONArray jsonArrayContacto = readJsonArrayFromUrl(
+							"http://190.215.113.91/InaCatalogAPI/api/iClientesLContactos?empresa=1&codcliente="
+									+ codCliente.replaceAll(" ", "%20"));
+					if (jsonArrayContacto != null && jsonArrayContacto.size() > 0
+							&& !jsonArrayContacto.get(0).toString().equals("[]")) {
+						for (int iii = 0; iii < jsonArrayContacto.size(); iii++) {
+							JSONObject jsonObjContacto = (JSONObject) jsonArrayContacto.get(iii);
+							MUser user = new MUser(bp);
+							user.setAD_Org_ID(m_AD_Org_ID);
+							user.setName(jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString());
+							if (!user.save())
+								comun.registrarLog("iClientesLContactos", 500, "Error al insertar contacto cliente " + cliente.getCodCliente() + " contacto " + jsonObjContacto.get(I_iClientesLContactos.COLUMNA_NOMCONTACTCLI).toString(), "", "", "");
+						}
 					}
+					
+					// Actualiza Cliente importado
+					cliente.setFlaExpCliente("1");
+					clientes.apiPutCliente(cliente);
+				} else {
+					comun.registrarLog("iClientes", 500, "Error al insertar cliente " + cliente.getCodCliente(), "", "", "");
 				}
-				
-				// Actualiza Cliente importado
-				cliente.setFlaExpCliente("1");
-				clientes.apiPutCliente(cliente);
-			} else {
-				comun.registrarLog("iClientes", 500, "Error al insertar cliente " + cliente.getCodCliente(), "", "", "");
 			}
 		}
 	}

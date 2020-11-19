@@ -442,4 +442,19 @@ public interface I_OV_Prereserva
 	 * Identifies a MultiRutRequisition
 	*/
 	public int getM_MRequisition_ID();
+	
+	/** Column name SalesRep_ID */
+    public static final String COLUMNNAME_SalesRep_ID = "SalesRep_ID";
+
+	/** Set Sales Representative.
+	  * Sales Representative or Company Agent
+	  */
+	public void setSalesRep_ID (int SalesRep_ID);
+
+	/** Get Sales Representative.
+	  * Sales Representative or Company Agent
+	  */
+	public int getSalesRep_ID();
+
+	public I_AD_User getSalesRep() throws RuntimeException;
 }

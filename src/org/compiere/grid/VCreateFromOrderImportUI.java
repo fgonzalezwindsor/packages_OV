@@ -332,6 +332,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 		sqlSumPrereservaLine.append(" WHERE pl.OV_Prereserva_ID = p.OV_Prereserva_ID"); 
 		sqlSumPrereservaLine.append(" AND p.DocStatus IN ('CO','CL')"); 
 		sqlSumPrereservaLine.append(" AND pl.M_Product_ID = ol.m_product_id");
+		sqlSumPrereservaLine.append(" AND pl.C_OrderLine_ID = ol.C_OrderLine_ID");
 
 		StringBuffer sql = new StringBuffer();
 		sql.append(" SELECT ol.C_OrderLine_ID, ol.Line, ol.M_Product_ID, p.Value, ol.QtyEntered, (ol.QtyEntered - (");
@@ -436,6 +437,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 												+ " FROM OV_Prereserva p, OV_PrereservaLine pl "
 												+ " WHERE p.OV_Prereserva_ID = pl.OV_Prereserva_ID "
 												+ " AND pl.M_Product_ID = " + M_Product_ID
+												+ " AND pl.C_OrderLine_ID = ol.C_OrderLine_ID"
 												+ " AND p.DocStatus IN ('CO','CL')),0)");
 		sql.append(" GROUP BY o.C_Order_ID, o.DocumentNo, o.DatePromised, bp.Name");
 		

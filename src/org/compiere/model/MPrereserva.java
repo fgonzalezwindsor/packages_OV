@@ -335,14 +335,30 @@ public class MPrereserva extends X_OV_Prereserva implements DocAction
 			return DocAction.STATUS_Invalid;
 		}
 		
-		// 1000571: PreVenta - Nota de Venta
-		if (getC_DocType_ID() == 1000571) {
+		// 1000572: PreVenta - Reserva Fisica
+		if (getC_DocType_ID() == 1000571 || getC_DocType_ID() == 1000572) {
 			if (getC_BPartner_ID() == 0) {
 				m_processMsg = "Debe ingresar Cliente.";
 				return DocAction.STATUS_Invalid;
 			}
 			if (getC_BPartner_Location_ID() == 0) {
 				m_processMsg = "Debe ingresar Dirección de Cliente.";
+				return DocAction.STATUS_Invalid;
+			}
+		}
+		
+		// 1000571: PreVenta - Nota de Venta
+		if (getC_DocType_ID() == 1000571) {
+			if (getSalesRep_ID() == 0) {
+				m_processMsg = "Debe ingresar Vendedor.";
+				return DocAction.STATUS_Invalid;
+			}
+			if (get_Value("c_bpartner_location_fact_id") == null) {
+				m_processMsg = "Debe ingresar Dirección de Facturación.";
+				return DocAction.STATUS_Invalid;
+			}
+			if (get_Value("c_bpartner_location_ent_id") == null) {
+				m_processMsg = "Debe ingresar Dirección de Entrega.";
 				return DocAction.STATUS_Invalid;
 			}
 		}
