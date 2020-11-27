@@ -859,7 +859,7 @@ public class ImportOrderMuroRF extends SvrProcess
 														order.set_CustomColumn("DIRECCIONSHOPIFY", ob2c.get_Value("DIRECCIONSHOPIFY"));
 													order.save();
 												}
-												if (contador<=16)
+												if (contador<=25)
 												{
 												//	  noInsertLine++;
 													MOrderLine line = new MOrderLine(order);
@@ -907,7 +907,7 @@ public class ImportOrderMuroRF extends SvrProcess
 													lines.save();
 													contador++;
 												}
-											if (contador==17)
+											if (contador==26)
 											{
 												//order.setDocAction("CO");
 												//order.processIt ("CO");

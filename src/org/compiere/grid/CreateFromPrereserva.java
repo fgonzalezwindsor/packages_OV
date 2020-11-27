@@ -141,10 +141,17 @@ public class CreateFromPrereserva extends CreateFrom
 				
 				KeyNamePair product_id = (KeyNamePair)miniTable.getValueAt(i, 2);
 				line.setProduct(new MProduct(Env.getCtx(),product_id.getKey(),null));
-				line.setPrice();				
+				line.setPrice();
+				line.set_CustomColumn("PriceList", line.getPriceActual());
+				line.set_CustomColumn("PriceEntered", line.getPriceActual());
 				KeyNamePair orderline_id = (KeyNamePair)miniTable.getValueAt(i, 1);
 				line.setC_OrderLine_ID(orderline_id.getKey());
 				line.setQty((BigDecimal)miniTable.getValueAt(i, 5));
+				
+				line.set_CustomColumn("discount2", BigDecimal.ZERO);
+				line.set_CustomColumn("discount3", BigDecimal.ZERO);
+				line.set_CustomColumn("discount4", BigDecimal.ZERO);
+				line.set_CustomColumn("discount5", BigDecimal.ZERO);
 				
 			    line.save();
 			}   //   if selected

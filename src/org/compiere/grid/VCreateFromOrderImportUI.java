@@ -440,6 +440,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 												+ " AND pl.C_OrderLine_ID = ol.C_OrderLine_ID"
 												+ " AND p.DocStatus IN ('CO','CL')),0)");
 		sql.append(" GROUP BY o.C_Order_ID, o.DocumentNo, o.DatePromised, bp.Name");
+		sql.append(" ORDER BY o.DatePromised");
 		
 		log.fine(sql.toString());
 		

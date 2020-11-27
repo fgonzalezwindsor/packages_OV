@@ -237,7 +237,8 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 	 */
 	public void setLineNetAmt ()
 	{
-		BigDecimal lineNetAmt = getQty().multiply(getPriceActual());
+		//BigDecimal lineNetAmt = getQty().multiply(getPriceActual());
+		BigDecimal lineNetAmt = getQty().multiply(new BigDecimal(get_Value("PriceEntered").toString()));
 		super.setLineNetAmt (lineNetAmt);
 	}	//	setLineNetAmt
 	
