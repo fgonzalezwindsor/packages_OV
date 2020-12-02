@@ -26,25 +26,29 @@ import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.methods.PutMethod;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
-import org.compiere.model.MLocation;
+import org.compiere.model.MClient;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPaymentTerm;
+import org.compiere.model.MPrereserva;
+import org.compiere.model.MPrereservaLine;
 import org.compiere.model.MProduct;
+import org.compiere.model.MProductPrice;
 import org.compiere.model.MRequisition;
 import org.compiere.model.MRequisitionLine;
 import org.compiere.model.MUser;
 import org.compiere.model.X_C_Order;
-import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.DB;
+import org.compiere.util.EMail;
 import org.compiere.util.Env;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.openvia.inacatalog.Common;
 import org.openvia.inacatalog.IPedidosLinsModel;
+import org.openvia.inacatalog.IPedidosModel;
 import org.openvia.inacatalog.I_iPedidos;
 import org.openvia.inacatalog.I_iPedidosLins;
 import org.openvia.inacatalog.iclientes.IClientesImp;
@@ -286,6 +290,85 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									rs.close();
 									pst.close();
 								}
+							} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
+								MPrereserva preventa = new MPrereserva(getCtx(), 0, get_TrxName());
+								preventa.setC_DocType_ID(1000571); // 1000571: PreVenta - Nota de Venta
+								preventa.setAD_Org_ID(m_AD_Org_ID);
+								preventa.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
+								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
+									preventa.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(getCtx(), preventa.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
+								else
+									preventa.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
+								preventa.set_CustomColumn("C_BPARTNER_LOCATION_ENT_ID", preventa.getC_BPartner_Location_ID());
+								preventa.set_CustomColumn("C_BPARTNER_LOCATION_FACT_ID", preventa.getC_BPartner_Location_ID());
+								preventa.setAD_User_ID(salesRepByBPartner(jsonObjPedido.get(I_iPedidos.COLUMNA_CODAGENTE).toString()));
+								preventa.setPriorityRule("5");
+								preventa.setSalesRep_ID(salesRepByBPartner(jsonObjPedido.get(I_iPedidos.COLUMNA_CODAGENTE).toString()));
+								preventa.setDateRequired(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
+								preventa.setDateDoc(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
+								preventa.setM_Warehouse_ID(1000010); // 1000010: Abastecimiento
+								preventa.setM_PriceList_ID(1000000); // 1000000: Ventas
+								preventa.setDocStatus("DR");
+								preventa.setDocAction("CO");
+								IPedidosModel iPedidos = existeOCPreventa(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
+								preventa.setC_Order_ID(iPedidos.getOrderID());
+								String documentNoInaCat = jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString();
+								preventa.set_CustomColumn("DOCUMENTNOINACAT", documentNoInaCat);
+								if (preventa.save()) {
+									// Revisar si existe OC para preventa, si no existe no se inserta Preventa y se envia aviso
+									int line = 0;
+									for (IPedidosLinsModel lin : iPedidos.getListIPedidosLins()) {
+										MPrereservaLine preLine = new MPrereservaLine(preventa);
+										line = line+10;
+										MProduct product = productByValue(lin.getCodArticulo());
+										preLine.setLine(line);
+										preLine.setM_Product_ID(product.getM_Product_ID());
+										preLine.setC_UOM_ID(product.getC_UOM_ID());
+										preLine.setQty(new BigDecimal(lin.getCanLinPed()));
+										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+										//BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+										BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
+										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+										preLine.setPriceActual(precioFinal);
+										preLine.set_CustomColumn("PriceEntered", precioFinal);
+										BigDecimal precioLista = MProductPrice.get(getCtx(), 1000012, product.getM_Product_ID(), get_TrxName()).getPriceList(); // M_PriceList_Version 1000012: Precios 30-03-09
+										preLine.set_CustomColumn("PriceList", precioLista!=null?precioLista:lin.getPreLinPed());
+										preLine.set_CustomColumn("Discount2", desc1);
+										preLine.set_CustomColumn("Discount3", desc2);
+										preLine.set_CustomColumn("Discount4", BigDecimal.ZERO);
+										preLine.set_CustomColumn("Discount5", BigDecimal.ZERO);
+										preLine.setC_OrderLine_ID(lin.getOrderLineID());
+										preLine.save();
+									}
+									System.out.println("Mensajes...");
+									if (iPedidos.getListMsg().size() > 0) {
+										String mensaje = "";
+										for (String msg : iPedidos.getListMsg()) {
+											mensaje = mensaje+msg+"<br />";
+										}
+										MClient M_Client = new MClient(getCtx(),get_TrxName());
+										String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
+										EMail email = M_Client.createEMail(correoTo, "Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail.SENT_OK.equals(email.send());
+										
+										EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail.SENT_OK.equals(email2.send());
+										
+										EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail.SENT_OK.equals(email3.send());
+										
+										EMail email4 = M_Client.createEMail("raranda@comten.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail.SENT_OK.equals(email4.send());
+									} else {
+										preventa.setDocAction("CO");
+										if(preventa.processIt ("CO"))
+										{
+											preventa.save();
+										}
+									}
+								}
 							} else {
 								MOrder order = new MOrder(getCtx(), 0, get_TrxName());
 								order.setAD_Org_ID(m_AD_Org_ID);
@@ -309,13 +392,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								order.set_CustomColumn("firma2", "Y"); // comercial
 								order.set_CustomColumn("firma3", "N"); // finanzas
 								order.set_CustomColumn("mediocompra", "InaCatalog");
-								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
+								/*if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
 									// 1000048: Orden de Pre-Venta
 									order.setC_DocType_ID(1000048);
 									order.setC_DocTypeTarget_ID(1000048);
 									order.set_CustomColumn("CODCATALOGOINA", getCodCatalogo(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString()));
 									order.set_CustomColumn("CODTARIFAINA", new BigDecimal(getCodTarifa(Integer.parseInt(jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString(), jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString())));
-								} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota Venta Normal
+								} else*/ 
+								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("1")) { // Nota Venta Normal
 									// 1000030: Orden de Venta
 									order.setC_DocType_ID(1000030);
 									order.setC_DocTypeTarget_ID(1000030);
@@ -375,32 +459,32 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								}
 								
 								// 3 Nota Pre-Venta: no valida stock ni reserva fisica.
-								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
-									for (IPedidosLinsModel lin : listaFinal) {
-										MOrderLine orderLine = new MOrderLine(order);
-										MProduct product = productByValue(lin.getCodArticulo());
-										orderLine.setAD_Org_ID(m_AD_Org_ID);
-										orderLine.setLine(lin.getLinPedido());
-										orderLine.setM_Product_ID(product.getM_Product_ID());
-										orderLine.setDescription(lin.getObsLinPed());
-										orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
-										orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
-										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
-										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
-										BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
-										System.out.println("desc1: " + desc1);
-										System.out.println("desc2: " + desc2);
-										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
-										System.out.println("precioConDesc1: " + precioConDesc1);
-										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
-										System.out.println("precioFinal: " + precioFinal);
-										orderLine.setPriceActual(precioFinal);
-										orderLine.setPriceEntered(precioFinal);
-										orderLine.setPriceList(priceList);
-										if (!orderLine.save())
-											comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
-									}
-								} else {
+//								if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
+//									for (IPedidosLinsModel lin : listaFinal) {
+//										MOrderLine orderLine = new MOrderLine(order);
+//										MProduct product = productByValue(lin.getCodArticulo());
+//										orderLine.setAD_Org_ID(m_AD_Org_ID);
+//										orderLine.setLine(lin.getLinPedido());
+//										orderLine.setM_Product_ID(product.getM_Product_ID());
+//										orderLine.setDescription(lin.getObsLinPed());
+//										orderLine.setQtyEntered(new BigDecimal(lin.getCanLinPed()));
+//										orderLine.setQtyOrdered(new BigDecimal(lin.getCanLinPed()));
+//										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+//										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+//										BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
+//										System.out.println("desc1: " + desc1);
+//										System.out.println("desc2: " + desc2);
+//										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+//										System.out.println("precioConDesc1: " + precioConDesc1);
+//										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+//										System.out.println("precioFinal: " + precioFinal);
+//										orderLine.setPriceActual(precioFinal);
+//										orderLine.setPriceEntered(precioFinal);
+//										orderLine.setPriceList(priceList);
+//										if (!orderLine.save())
+//											comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
+//									}
+//								} else {
 									for (IPedidosLinsModel lin : listaFinal) {
 										MProduct product = productByValue(lin.getCodArticulo());
 										StringBuffer s_sql = new StringBuffer();
@@ -482,7 +566,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 												}
 												BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
 												BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
-												BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+												//BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+												BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
 												BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
 												BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
 												orderLine.setPriceActual(precioFinal);
@@ -525,7 +610,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											}
 											BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
 											BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
-											BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+											//BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+											BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
 											BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
 											BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
 											orderLine.setPriceActual(precioFinal);
@@ -535,7 +621,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 												comun.registrarLog("iPedidosLins", 500, "Error al insertar linea " + lin.getLinPedido() + " pedido " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA) + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD) + " - " + nroPedido, "", "", "");
 										}
 									}
-								}
+//								}
 								// Definir Lista de precios
 								/** Si M_Product.catalogo
 								 *  Es Preventa Liquidacion --> m_pricelist_id 1000014
@@ -586,8 +672,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									{
 										order.save();
 									}
-//									if (order.processIt(DocAction.ACTION_Complete))
-//										order.saveEx();
+								} else {
+									BigDecimal porcentaje = order.getGrandTotal().multiply(new BigDecimal(100)).divide(new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TOTPED).toString()),0);
+									if (porcentaje.compareTo(new BigDecimal(70)) >= 0) {
+										order.setDocAction("CO");
+										if(order.processIt ("CO"))
+										{
+											order.save();
+										}
+									}
+									
 								}
 							}
 						}
@@ -845,6 +939,124 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 			e.printStackTrace();
 		}
 		return catalogo;
+	}
+	
+	private IPedidosModel existeOCPreventa(String codEmpresa, String nomIPad, String codPedido) {
+		IPedidosModel iPedidosModel = new IPedidosModel();
+		List<String> listMsg = new ArrayList<String>();
+		List<IPedidosLinsModel> listPreventaLine = new ArrayList<IPedidosLinsModel>();
+		int orderID = -1;
+		String documentNo = "";
+		try {
+			List<IPedidosLinsModel> listaLinsPedidos = new ArrayList<IPedidosLinsModel>();
+			JSONArray jsonArrayLine = readJsonArrayFromUrl("http://190.215.113.91/InaCatalogAPI/Api/iPedidosLins?empresa=" + codEmpresa + "&nomipad=" + nomIPad + "&codpedido="	+ codPedido);
+			if (jsonArrayLine != null && jsonArrayLine.size() > 0 && !jsonArrayLine.get(0).toString().equals("[]")) {
+				for (int j = 0; j < jsonArrayLine.size(); j++) {
+					IPedidosLinsModel lins = new IPedidosLinsModel();
+					JSONObject jsonObjLine = (JSONObject) jsonArrayLine.get(j);
+					lins.setLinPedido(Integer.parseInt(jsonObjLine.get(I_iPedidosLins.COLUMNA_LINPEDIDO).toString()));
+					lins.setCodArticulo(jsonObjLine.get(I_iPedidosLins.COLUMNA_CODARTICULO).toString());
+					lins.setDesLinPed(jsonObjLine.get(I_iPedidosLins.COLUMNA_DESLINPED).toString());
+					lins.setCanLinPed(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_CANLINPED).toString()));
+					lins.setPreLinPed(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_PRELINPED).toString()));
+					lins.setTpcDto01(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_TPCDTO01).toString()));
+					lins.setTpcDto02(Double.valueOf(jsonObjLine.get(I_iPedidosLins.COLUMNA_TPCDTO02).toString()));
+					listaLinsPedidos.add(lins);
+				}
+			}
+	
+			Set<String> hasSet = new HashSet<String>();
+			for (IPedidosLinsModel lin : listaLinsPedidos) {
+				hasSet.add(lin.getCodArticulo());
+			}
+	
+			// Se juntan productos duplicados
+			List<IPedidosLinsModel> listaFinal = new ArrayList<IPedidosLinsModel>();
+			for (String codArticulo : hasSet) {
+				List<IPedidosLinsModel> listTmp = null;
+				for (IPedidosLinsModel lin : listaLinsPedidos) {
+					if (codArticulo.equals(lin.getCodArticulo())) {
+						if (listTmp == null) {
+							// crea lista temp y asigna articulo
+							listTmp = new ArrayList<IPedidosLinsModel>();
+							listTmp.add(lin);
+						} else {
+							listTmp.get(0).setCanLinPed(listTmp.get(0).getCanLinPed() + lin.getCanLinPed());
+						}
+					}
+				}
+				listaFinal.add(listTmp.get(0));
+			}
+			
+			for (IPedidosLinsModel lin : listaFinal) {
+				MProduct product = productByValue(lin.getCodArticulo());
+				StringBuffer sql = new StringBuffer("SELECT o.C_Order_ID, o.DocumentNo, o.DatePromised, ol.QtyEntered, ol.C_OrderLine_ID")
+						.append(" FROM C_OrderLine ol, C_Order o")
+						.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
+						.append(" AND o.DocStatus = 'CO'")
+						.append(" AND o.C_DocType_ID = 1000047")
+						.append(" AND ol.M_Product_ID = ").append(product.getM_Product_ID())
+						.append(" AND ol.QtyDelivered = 0")
+						.append(" AND ol.QtyEntered > ").append(lin.getCanLinPed());
+						if (orderID != -1)
+							sql.append("AND ol.C_Order_ID = ").append(orderID);
+						sql.append(" ORDER BY o.DatePromised");
+				PreparedStatement pst = DB.prepareStatement(sql.toString(), get_TrxName());
+				ResultSet rs = pst.executeQuery();
+				String msg = "";
+				int count = 0;
+				while (rs.next()) {
+					++count;
+					orderID = rs.getInt("C_Order_ID");
+					documentNo = rs.getString("DocumentNo");
+					if (new BigDecimal(lin.getCanLinPed()).compareTo(rs.getBigDecimal("QtyEntered")) > 0) {
+						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad en orden de compra "+rs.getString("DocumentNo") + "("+rs.getBigDecimal("QtyEntered")+")";
+						continue;
+					} else {
+						msg = "";
+					}
+					// Consulta si cantidad ina puede ser solicitada
+					String sqlSum = "SELECT SUM(pl.Qty)"
+							+ " FROM OV_PrereservaLine pl, OV_Prereserva p"
+							+ " WHERE pl.OV_Prereserva_ID = p.OV_Prereserva_ID"
+							+ " AND p.C_Order_ID = " + orderID
+							+ " AND M_Product_ID = " + product.getM_Product_ID()
+							+ " AND p.DocStatus = 'CO'";
+					BigDecimal sumPreventas = DB.getSQLValueBD(get_TrxName(), sqlSum);
+					if (sumPreventas == null)
+						sumPreventas = BigDecimal.ZERO;
+					
+					BigDecimal disponible = rs.getBigDecimal("QtyEntered").subtract(sumPreventas);
+					
+					if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) < 0) {
+						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad de suma de preventas de orden de compra "+rs.getString("DocumentNo") + " suma preventas("+sumPreventas+")";
+						continue;
+					} else {
+						msg = "";
+					}
+					lin.setOrderLineID(rs.getInt("C_OrderLine_ID"));
+				}
+				if (orderID != -1 && count == 0) {
+					listMsg.add("Producto " + product.getValue() + " - " + product.getName() + ": No existe en Orden de Compra Internacional " + documentNo);
+				} else {
+					if (!msg.equals(""))
+						listMsg.add(msg);
+					else 
+						listPreventaLine.add(lin);
+				}
+				
+				if (orderID == -1 && count == 0)
+					listMsg.add("Producto " + product.getValue() + " - " + product.getName() + ": No existe Orden de Compra Internacional");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		iPedidosModel.setListIPedidosLins(listPreventaLine);
+		iPedidosModel.setListMsg(listMsg);
+		iPedidosModel.setOrderID(orderID);
+		
+		return iPedidosModel;
 	}
 
 }
