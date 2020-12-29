@@ -82,18 +82,18 @@ public class LimpiaInaCatalog extends SvrProcess {
 		ConexioDBInaCatalog conexion = new ConexioDBInaCatalog();
 		
 		// delete de tablas
-		pst = conexion.conn.prepareStatement("DELETE FROM iPedidosCentralLin WHERE codEmpresa=1");
-		try {
-			pst.execute();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		pst = conexion.conn.prepareStatement("DELETE FROM iPedidosCentral WHERE codEmpresa=1");
-		try {
-			pst.execute();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+//		pst = conexion.conn.prepareStatement("DELETE FROM iPedidosCentralLin WHERE codEmpresa=1");
+//		try {
+//			pst.execute();
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
+//		pst = conexion.conn.prepareStatement("DELETE FROM iPedidosCentral WHERE codEmpresa=1");
+//		try {
+//			pst.execute();
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
 		pst = conexion.conn.prepareStatement("DELETE FROM iSectores WHERE codEmpresa=1");
 		try {
 			pst.execute();
@@ -112,12 +112,12 @@ public class LimpiaInaCatalog extends SvrProcess {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		pst = conexion.conn.prepareStatement("DELETE FROM iCobros WHERE codEmpresa=1");
-		try {
-			pst.execute();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+//		pst = conexion.conn.prepareStatement("DELETE FROM iCobros WHERE codEmpresa=1");
+//		try {
+//			pst.execute();
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
 		pst = conexion.conn.prepareStatement("DELETE FROM iClientes WHERE codEmpresa=1 AND flaObsoleto=0");
 		try {
 			pst.execute();

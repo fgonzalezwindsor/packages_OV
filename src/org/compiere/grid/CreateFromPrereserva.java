@@ -111,7 +111,7 @@ public class CreateFromPrereserva extends CreateFrom
 			{				
 				KeyNamePair orderline_id = (KeyNamePair)miniTable.getValueAt(i, 1);
 				MOrderLine orderLine = new MOrderLine(Env.getCtx(), orderline_id.getKey(), trxName);
-				if ( ((BigDecimal)miniTable.getValueAt(i, 5)).compareTo(orderLine.getQtyEntered()) > 0 )
+				if ( ((BigDecimal)miniTable.getValueAt(i, 5)).compareTo((BigDecimal)miniTable.getValueAt(i, 4)) > 0 )
 					throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
 			}   //   if selected
 		}   //  for all rows

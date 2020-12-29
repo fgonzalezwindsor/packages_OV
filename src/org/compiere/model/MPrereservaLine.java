@@ -255,10 +255,15 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 			return false;
 		}
 		
-		if (getQty().compareTo(getC_OrderLine().getQtyEntered()) > 0) {
-			throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
-//			log.saveError("Error", "Cantidad no puede ser mayor a la Cantidad de la Orden");
-//			return false;
+		String sqlSum = "SELECT SUM(Qty) FROM OV_PrereservaLine WHERE C_OrderLine_ID=? AND OV_PrereservaLine_ID != ?";
+		int suma = DB.getSQLValueEx(get_TrxName(), sqlSum, getC_OrderLine_ID(), getOV_PrereservaLine_ID());
+		
+		if (getC_OrderLine_ID() != 0) {
+			if (getQty().compareTo(getC_OrderLine().getQtyEntered().subtract(new BigDecimal(suma))) > 0) {
+				throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
+//				log.saveError("Error", "Cantidad no puede ser mayor a la Cantidad de la Orden");
+//				return false;
+			}
 		}
 		
 		if (getLine() == 0)

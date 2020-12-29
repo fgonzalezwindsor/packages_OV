@@ -16,6 +16,7 @@ public class ApiPedCentralsCobros extends SvrProcess {
 	ApiIPedidosCentralLins iPedidosCentralLins = new ApiIPedidosCentralLins();
 	
 	ConexioDBInaCatalog connInacatalog = new ConexioDBInaCatalog();
+	LimpiaInaCatalogPedCentralsCobros limpiar = new LimpiaInaCatalogPedCentralsCobros();
 
 	@Override
 	protected void prepare() {
@@ -40,6 +41,10 @@ public class ApiPedCentralsCobros extends SvrProcess {
 			pst.execute();
 			pst.close();
 			connInacatalog.closeConection(conn);
+			
+			System.out.println("Inicio limpiar...");
+			limpiar.doIt();
+			System.out.println("Fin limpiar");
 			
 			// Comienza migracion Inacatalog
 			System.out.println("Inicio iCobros...");
