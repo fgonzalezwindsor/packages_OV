@@ -409,6 +409,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								order.set_CustomColumn("firma2", "Y"); // comercial
 								order.set_CustomColumn("firma3", "N"); // finanzas
 								order.set_CustomColumn("mediocompra", "InaCatalog");
+								order.setDeliveryRule("O");
 								/*if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
 									// 1000048: Orden de Pre-Venta
 									order.setC_DocType_ID(1000048);

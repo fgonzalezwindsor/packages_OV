@@ -67,6 +67,8 @@ public class ProcesarPrereserva extends SvrProcess {
 							order.set_CustomColumn("VentaInvierno", "N");
 							order.set_CustomColumn("ov_prereserva_id", prereserva.getOV_Prereserva_ID());
 							order.set_CustomColumn("FIRMA2", "Y");
+							order.set_CustomColumn("FIRMA3", "N");
+							order.setDeliveryRule("O");
 							order.saveEx();
 							for (MPrereservaLine prereservaLine : prereserva.getLines()) {
 								MOrderLine orderLine = new MOrderLine(order);
