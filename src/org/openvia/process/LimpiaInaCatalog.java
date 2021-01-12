@@ -386,6 +386,31 @@ public class LimpiaInaCatalog extends SvrProcess {
 			e.printStackTrace();
 		}
 		
+		pst = DB.prepareStatement("update tov_productos_x_recibir "
+				+ "set qtyporrecibir=qtyporrecibir + (select min(s.qtyporrecibir/b.bomqty) "
+				+ "from m_product_bom b, m_product padre, m_product hijo, tov_productos_x_recibir s "
+				+ "where b.m_product_id=padre.m_product_id "
+				+ "and b.m_productbom_id=hijo.m_product_id "
+				+ "and hijo.m_product_id=s.m_product_id "
+				+ "and b.bomqty>0 "
+				+ "and tov_productos_x_recibir.m_product_id=padre.m_product_id "
+				+ "group by padre.m_product_id, hijo.m_product_id "
+				+ "having min(s.qtyporrecibir/b.bomqty)>0) "
+				+ "where exists(select 1 "
+				+ "				from m_product_bom b, m_product padre, m_product hijo, tov_productos_x_recibir s "
+				+ "				where b.m_product_id=padre.m_product_id "
+				+ "				and b.m_productbom_id=hijo.m_product_id "
+				+ "				and hijo.m_product_id=s.m_product_id "
+				+ "				and b.bomqty>0 "
+				+ "				and tov_productos_x_recibir.m_product_id=padre.m_product_id "
+				+ "				group by padre.m_product_id, hijo.m_product_id "
+				+ "				having min(s.qtyporrecibir/b.bomqty)>0)", get_TrxName());
+		try {
+			pst.execute();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
 		return true;
 	}
 
