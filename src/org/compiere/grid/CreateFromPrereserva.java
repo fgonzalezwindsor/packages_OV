@@ -87,7 +87,7 @@ public class CreateFromPrereserva extends CreateFrom
 	protected void configureMiniTable (IMiniTable miniTable)
 	{
 		miniTable.setColumnClass(0, Boolean.class, false);      //  0-Selection
-		miniTable.setColumnClass(1, Integer.class, true);        //  1--C_OrderLine
+		miniTable.setColumnClass(1, String.class, true);        //  1--C_OrderLine
 		miniTable.setColumnClass(2, String.class, true);    //  2-Product
 		miniTable.setColumnClass(3, BigDecimal.class, true);		//  3- QtyEntered
 		miniTable.setColumnClass(4, BigDecimal.class, true);        // 4-QtyDisponible
@@ -133,12 +133,13 @@ public class CreateFromPrereserva extends CreateFrom
 		}
   
 		//  Lines
+		int linePreventa = 0;
 		for (int i = 0; i < miniTable.getRowCount(); i++)
 		{
 			if (((Boolean)miniTable.getValueAt(i, 0)).booleanValue())
 			{
 				MPrereservaLine line = new MPrereservaLine(newPrereserva);
-				
+				linePreventa += 10;
 				KeyNamePair product_id = (KeyNamePair)miniTable.getValueAt(i, 2);
 				line.setProduct(new MProduct(Env.getCtx(),product_id.getKey(),null));
 				line.setPrice();
@@ -152,6 +153,8 @@ public class CreateFromPrereserva extends CreateFrom
 				line.set_CustomColumn("discount3", BigDecimal.ZERO);
 				line.set_CustomColumn("discount4", BigDecimal.ZERO);
 				line.set_CustomColumn("discount5", BigDecimal.ZERO);
+				
+				line.setLine(linePreventa);
 				
 			    line.save();
 			}   //   if selected

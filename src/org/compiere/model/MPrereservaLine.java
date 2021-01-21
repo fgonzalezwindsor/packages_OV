@@ -255,8 +255,15 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 			return false;
 		}
 		
-		String sqlSum = "SELECT SUM(Qty) FROM OV_PrereservaLine WHERE C_OrderLine_ID=? AND OV_PrereservaLine_ID != ?";
-		int suma = DB.getSQLValueEx(get_TrxName(), sqlSum, getC_OrderLine_ID(), getOV_PrereservaLine_ID());
+		String sqlSum = "SELECT qtyentered - (SELECT coalesce(sum(pl.Qty),0)" + 
+						" 					  FROM OV_PrereservaLine pl, OV_Prereserva p" + 
+						" 					  WHERE pl.OV_Prereserva_ID = p.OV_Prereserva_ID" + 
+						"                     AND p.DocStatus IN ('CO','CL')" + 
+						"                     AND pl.C_OrderLine_ID = ol.C_OrderLine_ID" + 
+						"                     AND OV_PrereservaLine_ID != ?)" + 
+						" FROM C_OrderLine ol" + 
+						" WHERE C_OrderLine_ID = ?";
+		int suma = DB.getSQLValueEx(get_TrxName(), sqlSum, getOV_PrereservaLine_ID(), getC_OrderLine_ID());
 		
 		if (getC_OrderLine_ID() != 0) {
 			if (getQty().compareTo(getC_OrderLine().getQtyEntered().subtract(new BigDecimal(suma))) > 0) {

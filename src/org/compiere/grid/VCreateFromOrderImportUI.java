@@ -32,8 +32,10 @@ import java.util.logging.Level;
 
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
+import org.compiere.apps.ADialog;
 import org.compiere.apps.AEnv;
 import org.compiere.apps.ConfirmPanel;
 import org.compiere.grid.ed.VLookup;
@@ -119,9 +121,13 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 		refreshButton.addActionListener(this);
 		dialog.getConfirmPanel().addButton(refreshButton);
 		dialog.getRootPane().setDefaultButton(refreshButton);
+		
+		/*if (getGridTab().getValue("C_Order_ID") != null) {
+			ADialog.error(0, dialog, null, "La preventa ya tiene lineas de una OC, debe crear una nueva o volver a ingresar todas las lineas nuevamente");
+			return false;
+		}*/
+		
 		dialog.setTitle(getTitle());
-		
-		
 
 		// RMA Selection option should only be available for AP Credit Memo
 		Integer docTypeId = (Integer) getGridTab().getValue("C_DocType_ID");
@@ -335,7 +341,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 		sqlSumPrereservaLine.append(" AND pl.C_OrderLine_ID = ol.C_OrderLine_ID");
 
 		StringBuffer sql = new StringBuffer();
-		sql.append(" SELECT ol.C_OrderLine_ID, ol.Line, ol.M_Product_ID, p.Value, ol.QtyEntered, (ol.QtyEntered - (");
+		sql.append(" SELECT ol.C_OrderLine_ID, to_char(ol.Line), ol.M_Product_ID, p.Value, ol.QtyEntered, (ol.QtyEntered - (");
 		sql.append(sqlSumPrereservaLine);
 		sql.append(" )) AS QtyDisponible");
 		sql.append(" FROM C_OrderLine ol, M_Product p");
@@ -386,7 +392,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 		//
 		dialog.getMiniTable().setColumnClass(0, Boolean.class, false); // 0-Selection
 //		dialog.getMiniTable().setColumnClass(1, Integer.class, true); // 1-Line
-		dialog.getMiniTable().setColumnClass(1, Integer.class, true); // 1-C_OrderLine
+		dialog.getMiniTable().setColumnClass(1, String.class, true); // 1-C_OrderLine
 //		dialog.getMiniTable().setColumnClass(3, String.class, true); // 3-Value
 		dialog.getMiniTable().setColumnClass(2, String.class, true); // 2-Product
 		dialog.getMiniTable().setColumnClass(3, BigDecimal.class, true); // 3-QtyEntered
