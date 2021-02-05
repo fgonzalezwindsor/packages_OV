@@ -278,7 +278,7 @@ public class LimpiaInaCatalog extends SvrProcess {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		pst = DB.prepareStatement("create table TOV_PRODUCTOS_INACATALOG as select * from OV_PRODUCTOS_INACATALOG", get_TrxName());
+		pst = DB.prepareStatement("create table TOV_PRODUCTOS_INACATALOG as select * from ADEMPIERE.OV_PRODUCTOS_INACATALOG", get_TrxName());
 		try {
 			pst.execute();
 		} catch (SQLException e) {
@@ -405,6 +405,27 @@ public class LimpiaInaCatalog extends SvrProcess {
 				+ "				and tov_productos_x_recibir.m_product_id=padre.m_product_id "
 				+ "				group by padre.m_product_id, hijo.m_product_id "
 				+ "				having min(s.qtyporrecibir/b.bomqty)>0)", get_TrxName());
+		try {
+			pst.execute();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		pst = DB.prepareStatement("drop table ADEMPIERE.TOV_LINEAS_ULTTEMPORADA", get_TrxName());
+		try {
+			pst.execute();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		pst = DB.prepareStatement("create table ADEMPIERE.TOV_LINEAS_ULTTEMPORADA AS SELECT * FROM ADEMPIERE.OV_LINEAS_ULTTEMPORADA", get_TrxName());
+		try {
+			pst.execute();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		pst = DB.prepareStatement("create unique index ADEMPIERE.Ti1OV_LINEAS_ULTTEMPORADA ON ADEMPIERE.TOV_LINEAS_ULTTEMPORADA(m_product_linea_id)", get_TrxName());
 		try {
 			pst.execute();
 		} catch (SQLException e) {

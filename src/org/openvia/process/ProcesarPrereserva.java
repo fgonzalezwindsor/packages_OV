@@ -43,7 +43,7 @@ public class ProcesarPrereserva extends SvrProcess {
 		StringBuffer sqlDoctosPreventa = new StringBuffer("SELECT Count(*) FROM OV_Documentos_preventa WHERE C_Order_origen_ID = " + order_ID);
 		int doctosPreventa = DB.getSQLValue(get_TrxName(), sqlDoctosPreventa.toString());
 		if (doctosPreventa == 0) {
-			PreparedStatement pstPre = DB.prepareStatement("SELECT OV_Prereserva_ID FROM OV_Prereserva WHERE C_Order_ID = " + order_ID + " Order By C_DocType_ID", get_TrxName());
+			PreparedStatement pstPre = DB.prepareStatement("SELECT OV_Prereserva_ID FROM OV_Prereserva WHERE C_Order_ID = " + order_ID + " AND DocStatus = 'CO' Order By C_DocType_ID", get_TrxName());
 			ResultSet res = pstPre.executeQuery();
 			while (res.next()) {
 //					for (int id : listaPrereservas) {
@@ -69,6 +69,7 @@ public class ProcesarPrereserva extends SvrProcess {
 							order.set_CustomColumn("FIRMA2", "Y");
 							order.set_CustomColumn("FIRMA3", "N");
 							order.setDeliveryRule("O");
+							order.set_CustomColumn("FIRMA1", "Y");
 							order.saveEx();
 							for (MPrereservaLine prereservaLine : prereserva.getLines()) {
 								MOrderLine orderLine = new MOrderLine(order);

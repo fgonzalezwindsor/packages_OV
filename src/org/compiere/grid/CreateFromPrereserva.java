@@ -111,8 +111,12 @@ public class CreateFromPrereserva extends CreateFrom
 			{				
 				KeyNamePair orderline_id = (KeyNamePair)miniTable.getValueAt(i, 1);
 				MOrderLine orderLine = new MOrderLine(Env.getCtx(), orderline_id.getKey(), trxName);
+				
+				KeyNamePair product_id = (KeyNamePair)miniTable.getValueAt(i, 2);
+				MProduct product = new MProduct(Env.getCtx(), product_id.getKey(), trxName);
+				
 				if ( ((BigDecimal)miniTable.getValueAt(i, 5)).compareTo((BigDecimal)miniTable.getValueAt(i, 4)) > 0 )
-					throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
+					throw new AdempiereException("Cant. Solicitada("+((BigDecimal)miniTable.getValueAt(i, 5)).setScale(2)+") del producto "+product.getValue()+" no puede ser mayor a Cant. Disponible("+(BigDecimal)miniTable.getValueAt(i, 4)+")");
 			}   //   if selected
 		}   //  for all rows
 		

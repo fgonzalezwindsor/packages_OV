@@ -360,21 +360,29 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										for (String msg : iPedidos.getListMsg()) {
 											mensaje = mensaje+msg+"<br />";
 										}
+										StringBuffer mensajeCompleto = new StringBuffer();
+										mensajeCompleto.append("El pedido "+documentNoInaCat+" tiene productos que hacen referencia al pedido de importación "+iPedidos.getDocumentNo()+". Adicionalmente también incluye otros productos, los que no han sido agregados a la preventa en Adempiere. Recuerde que cada preventa debe hacer referencia a un solo pedido de importación. A continuacion el detalle de los productos no incluídos para que los ingrese en una nueva preventa de transito:");
+										mensajeCompleto.append("<br />");
+										mensajeCompleto.append(mensaje);
+										mensajeCompleto.append("<br />");
+										mensajeCompleto.append("<br />");
+										mensajeCompleto.append("No olvide completar la preventa de tránsito "+documentNoInaCat+" en Adempiere para que sea debidamente considerada");
+										
 										MClient M_Client = new MClient(getCtx(),get_TrxName());
 										String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
-										EMail email = M_Client.createEMail(correoTo, "Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail email = M_Client.createEMail(correoTo, "Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email.send());
 										
-										EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email2.send());
 										
-										EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email3.send());
 										
-										EMail email4 = M_Client.createEMail("raranda@comten.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail email4 = M_Client.createEMail("raranda@comten.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email4.send());
 										
-										EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensaje,true);
+										EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email5.send());
 									} else {
 										preventa.setDocAction("CO");
@@ -899,16 +907,16 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 			if (bPartnerByValue(cliente.getCodCliente()) == null) {
 				MBPartner bp = new MBPartner(getCtx(), 0, get_TrxName());
 				bp.setAD_Org_ID(m_AD_Org_ID);
-				bp.setValue(cliente.getCodCliente());
+				bp.setValue(cliente.getCifCliente().replaceAll("\\.", "").substring(0, cliente.getCifCliente().replaceAll("\\.", "").indexOf("-")));
+//				bp.setValue(cliente.getCodCliente());
+				bp.set_CustomColumn("ov_codcliente", cliente.getCodCliente());
 				bp.setName(cliente.getNomCliente().isEmpty() ? cliente.getCodCliente().toString() : cliente.getNomCliente());
 				bp.setC_BP_Group_ID(1000005); // 1000005: Clientes
 				bp.setIsCustomer(true);
 				String codCliente = cliente.getCodCliente();
 				if (bp.save()) {
 					// Insertar Direcciones Cliente
-					JSONArray jsonArrayDir = readJsonArrayFromUrl(
-							"http://190.215.113.91/InaCatalogAPI/api/iClientesLDirs?empresa=1&codcliente="
-									+ codCliente.replaceAll(" ", "%20"));
+					JSONArray jsonArrayDir = readJsonArrayFromUrl("http://190.215.113.91/InaCatalogAPI/api/iClientesLDirs?empresa=1&codcliente=" + codCliente.replaceAll(" ", "%20"));
 					if (jsonArrayDir != null && jsonArrayDir.size() > 0
 							&& !jsonArrayDir.get(0).toString().equals("[]")) {
 						for (int ii = 0; ii < jsonArrayDir.size(); ii++) {
@@ -1076,6 +1084,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 		iPedidosModel.setListIPedidosLins(listPreventaLine);
 		iPedidosModel.setListMsg(listMsg);
 		iPedidosModel.setOrderID(orderID);
+		iPedidosModel.setDocumentNo(documentNo);
 		
 		return iPedidosModel;
 	}

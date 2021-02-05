@@ -255,7 +255,7 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 			return false;
 		}
 		
-		String sqlSum = "SELECT qtyentered - (SELECT coalesce(sum(pl.Qty),0)" + 
+		String sqlSum = "SELECT (SELECT coalesce(sum(pl.Qty),0)" + 
 						" 					  FROM OV_PrereservaLine pl, OV_Prereserva p" + 
 						" 					  WHERE pl.OV_Prereserva_ID = p.OV_Prereserva_ID" + 
 						"                     AND p.DocStatus IN ('CO','CL')" + 
@@ -264,13 +264,22 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 						" FROM C_OrderLine ol" + 
 						" WHERE C_OrderLine_ID = ?";
 		int suma = DB.getSQLValueEx(get_TrxName(), sqlSum, getOV_PrereservaLine_ID(), getC_OrderLine_ID());
-		
+
 		if (getC_OrderLine_ID() != 0) {
-			if (getQty().compareTo(getC_OrderLine().getQtyEntered().subtract(new BigDecimal(suma))) > 0) {
-				throw new AdempiereException("Cant. Solicitada no puede ser mayor a Cant. Disponible");
+			BigDecimal qtyDisponible = getC_OrderLine().getQtyEntered().subtract(new BigDecimal(suma));
+			if (getQty().compareTo(qtyDisponible) > 0) {
+				throw new AdempiereException("Cant. Solicitada("+getQty().setScale(2)+") del producto "+getM_Product().getValue()+" no puede ser mayor a Cant. Disponible("+qtyDisponible+")");
 //				log.saveError("Error", "Cantidad no puede ser mayor a la Cantidad de la Orden");
 //				return false;
 			}
+		}
+		
+		if (((BigDecimal)get_Value("Discount2")).compareTo(BigDecimal.ZERO) < 0 || ((BigDecimal)get_Value("Discount2")).compareTo(new BigDecimal(100)) > 0) {
+			throw new AdempiereException("Porcentaje debe ser entre 0 y 100");
+		}
+		
+		if (((BigDecimal)get_Value("Discount3")).compareTo(BigDecimal.ZERO) < 0 || ((BigDecimal)get_Value("Discount3")).compareTo(new BigDecimal(100)) > 0) {
+			throw new AdempiereException("Porcentaje debe ser entre 0 y 100");
 		}
 		
 		if (getLine() == 0)

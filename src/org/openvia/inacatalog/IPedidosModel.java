@@ -8,6 +8,7 @@ public class IPedidosModel implements Serializable {
 	private List<String> listMsg;
 	private List<IPedidosLinsModel> listIPedidosLins;
 	private Integer orderID;
+	private String documentNo;
 	
 	public List<String> getListMsg() {
 		return listMsg;
@@ -27,6 +28,11 @@ public class IPedidosModel implements Serializable {
 	public void setOrderID(Integer orderID) {
 		this.orderID = orderID;
 	}
-	
+	public String getDocumentNo() {
+		return documentNo;
+	}
+	public void setDocumentNo(String documentNo) {
+		this.documentNo = documentNo;
+	}
 	
 }
