@@ -767,6 +767,7 @@ public class ImportOrderMuroRF extends SvrProcess
 					MOrder order = null;
 					int contador = 1;
 					int contadordoc=0;
+					boolean completar = true;
 					
 					//validar que todas las lineas esten okey y que hau lineas
 					String sqlvl = "Select count(*) cuenta from C_OrderB2CLine where C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
@@ -899,7 +900,12 @@ public class ImportOrderMuroRF extends SvrProcess
 													
 													line.setLineNetAmt();
 													line.set_CustomColumn("M_RequisitionLine_ID",(Integer) lines.get_Value("M_RequisitionLine_ID"));
-													line.save();
+													if(!line.save()) {
+														completar = false;
+														line.setQty(BigDecimal.ZERO);
+														line.set_CustomColumn("NotPrint", "Y");
+														line.save();
+													}
 													//line.set_ValueOfColumn("TEMPLINE_ID", rs.getInt("M_INVENTORYLINETEMP_ID"));
 													
 													lines.setC_Order_ID(order.getC_Order_ID());
@@ -909,33 +915,32 @@ public class ImportOrderMuroRF extends SvrProcess
 												}
 											if (contador==26)
 											{
-												//order.setDocAction("CO");
-												//order.processIt ("CO");
-												 order.processIt(X_C_Order.DOCACTION_Complete);
-												//   order.completeIt();
-												 
-												order.save();
-												order.setDocAction("CO"); 
-												 order.processIt ("CO");
+												if(completar) {
+													order.processIt(X_C_Order.DOCACTION_Complete);
+													 
 													order.save();
-												docok++;
+													order.setDocAction("CO"); 
+													 order.processIt ("CO");
+														order.save();
+													docok++;
+												}
 												contador=1;
 												
 												order=null;
 											}
 											//aux++;
 											} //while
-											//order.setDocAction("CO");
-											//order.processIt ("CO");
-											 order.processIt(X_C_Order.DOCACTION_Complete);
-											  // order.completeIt();
-											  // order.save();
+											
 											order.set_CustomColumn("FIRMA2", "Y");
 											order.set_CustomColumn("FIRMA3", "Y");
-											order.save();
-											 order.setDocAction("CO");
-											 order.processIt ("CO");
+											if(completar) {
+												order.processIt(X_C_Order.DOCACTION_Complete);
 												order.save();
+												order.setDocAction("CO");
+												order.processIt ("CO");
+											}
+											order.save();
+											
 											ob2c.setProcessed(true);
 											ob2c.save();
 											contador=1;

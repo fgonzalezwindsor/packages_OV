@@ -1058,7 +1058,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 					BigDecimal disponible = rs.getBigDecimal("QtyEntered").subtract(sumPreventas);
 					
 					if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) < 0) {
-						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad de suma de preventas de orden de compra "+rs.getString("DocumentNo") + " suma preventas("+sumPreventas+")";
+						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad de suma de preventas de orden de compra "+rs.getString("DocumentNo") + "("+ rs.getBigDecimal("QtyEntered") +")" +" suma preventas("+sumPreventas+")";
 						continue;
 					} else {
 						msg = "";
