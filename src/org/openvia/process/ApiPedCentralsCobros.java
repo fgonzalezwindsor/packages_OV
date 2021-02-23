@@ -29,7 +29,7 @@ public class ApiPedCentralsCobros extends SvrProcess {
 		String semaforo = null;
 		Connection conn = connInacatalog.openConection();
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-		PreparedStatement pst = conn.prepareStatement("SELECT datValor FROM iParametros WHERE codParametro = 'SemaforoInaCatalog'");
+		PreparedStatement pst = conn.prepareStatement("SELECT datValor FROM Windsor_Semaforo WHERE codParametro = 'SemaforoInaCatalog'");
 		ResultSet rs = pst.executeQuery();
 		if (rs.next()) {
 			semaforo = rs.getString("datValor");
@@ -37,7 +37,7 @@ public class ApiPedCentralsCobros extends SvrProcess {
 		
 		if (semaforo.substring(0, semaforo.indexOf(":")).equals("Verde")) {
 			// Actualizamos a Rojo
-			pst = conn.prepareStatement("UPDATE iParametros SET datValor = 'Rojo:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
+			pst = conn.prepareStatement("UPDATE Windsor_Semaforo SET datValor = 'Rojo:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
 			pst.execute();
 			pst.close();
 			connInacatalog.closeConection(conn);
@@ -60,7 +60,7 @@ public class ApiPedCentralsCobros extends SvrProcess {
 			System.out.println("Fin iPedidosCentralLins");
 			
 			conn = connInacatalog.openConection();
-			pst = conn.prepareStatement("UPDATE iParametros SET datValor = 'Verde:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
+			pst = conn.prepareStatement("UPDATE Windsor_Semaforo SET datValor = 'Verde:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
 			pst.execute();
 			pst.close();
 			connInacatalog.closeConection(conn);
