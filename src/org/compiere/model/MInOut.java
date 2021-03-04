@@ -1794,10 +1794,11 @@ public class MInOut extends X_M_InOut implements DocAction
 		if (getC_Order().getC_DocType_ID() == 1000047 && listaClientes.size() > 0) { //1000047: Orden de Compra Internacional
 			// Enviar notificacion que se completo un recibo de una orden de compra internacional
 			StringBuffer cuerpoMensaje = new StringBuffer();
-			cuerpoMensaje.append("Se ha recibido OC Internacional N° " + getC_Order().getDocumentNo() + ", hay preventas comprometidas para <br />");
+			cuerpoMensaje.append("Se ha recibido OC Internacional N° " + getC_Order().getDocumentNo() + ". Como dicha orden tiene preventas comprometidas para <br />");
 			for(String cliente : listaClientes) {
 				cuerpoMensaje.append(cliente + "<br />");
 			}
+			cuerpoMensaje.append(", se recomienda procesar dicha OC a la brevedad posible.");
 			MClient M_Client = new MClient(getCtx(),get_TrxName());
 			EMail email = M_Client.createEMail("crodriguez@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
 			EMail.SENT_OK.equals(email.send());

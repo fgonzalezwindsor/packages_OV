@@ -355,14 +355,47 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										preLine.save();
 									}
 									System.out.println("Mensajes...");
-									if (iPedidos.getListMsg().size() > 0) {
-										String mensaje = "";
-										for (String msg : iPedidos.getListMsg()) {
-											mensaje = mensaje+msg+"<br />";
+									if (iPedidos.getListMsg1().size() > 0 || iPedidos.getListMsg2().size() > 0 || iPedidos.getListMsg3().size() > 0 || iPedidos.getListMsg4().size() > 0) {
+										StringBuffer mensaje = new StringBuffer();
+										if (iPedidos.getListMsg1().size() > 0) {
+											//Encabezado mensaje
+											mensaje.append("Pedido ingresado está asociado a más de una orden de compra de importación.<br />");
+											mensaje.append("La preventa generada "+documentNoInaCat+" para la orden de compra de importación "+iPedidos.getDocumentNo()+". no puede incluir los siguientes productor porque corresponden a otra orden de compra. Los siguientes productos no se van a inyectar a Adempiere por lo tanto debe ingresar un pedido por separado en inaCatalog.<br />");
+											for (String msg : iPedidos.getListMsg1()) {
+												mensaje.append(msg+"<br />");
+											}
 										}
+										if (iPedidos.getListMsg2().size() > 0) {
+											//Encabezado mensaje
+											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque la cantidad solicitada supera el stock en tránsito.<br />"); 
+											for (String msg : iPedidos.getListMsg2()) {
+												mensaje.append(msg+"<br />");
+											}
+										}
+										if (iPedidos.getListMsg3().size() > 0) {
+											//Encabezado mensaje
+											mensaje.append("Orden de compra de importación no existe<br />");
+											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque no tienen una orden de compra asociada");
+//											MBPartner partner = bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString());
+//											mensaje.append("La preventa "+documentNoInaCat+" asociad/a al cliente " + partner.getValue() + " - " + partner.getName() + " no puede incluir los siguientes productos ya que no hay stock disponible.<br />");
+//											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque no tienen una orden de compra asociada: " + iPedidos.getDocumentNo() + "<br />");
+											for (String msg : iPedidos.getListMsg3()) {
+												mensaje.append(msg+"<br />");
+											}
+											mensaje.append("El resto de la preventa que si tenía stock se inyectó correctamente. Lo que no se inyectó ver factibilidad en otra orden de compra.<br />");
+										}
+										
+										if (iPedidos.getListMsg4().size() > 0) {
+											//Encabezado mensaje
+											mensaje.append("Mezcló productos en tránsito con disponible (sin tránsito).<br />");
+											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos ya que no tienen una orden de compra de importación asociada. Los siguientes productos no se van a inyectar a Adempiere por lo tanto debe ingresar un pedido por separado en inaCatalog<br />");
+											for (String msg : iPedidos.getListMsg4()) {
+												mensaje.append(msg+"<br />");
+											}
+											mensaje.append("El resto de los productos se inyectó correctamente.");
+										}
+										
 										StringBuffer mensajeCompleto = new StringBuffer();
-										mensajeCompleto.append("El pedido "+documentNoInaCat+" tiene productos que hacen referencia al pedido de importación "+iPedidos.getDocumentNo()+". Adicionalmente también incluye otros productos, los que no han sido agregados a la preventa en Adempiere. Recuerde que cada preventa debe hacer referencia a un solo pedido de importación. A continuacion el detalle de los productos no incluídos para que los ingrese en una nueva preventa de transito:");
-										mensajeCompleto.append("<br />");
 										mensajeCompleto.append(mensaje);
 										mensajeCompleto.append("<br />");
 										mensajeCompleto.append("<br />");
@@ -972,7 +1005,11 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 	
 	private IPedidosModel existeOCPreventa(String codEmpresa, String nomIPad, String codPedido) {
 		IPedidosModel iPedidosModel = new IPedidosModel();
-		List<String> listMsg = new ArrayList<String>();
+		List<String> listMsg1 = new ArrayList<String>();
+		List<String> listMsg2 = new ArrayList<String>();
+		List<String> listMsg3 = new ArrayList<String>();
+		List<String> listMsg4 = new ArrayList<String>();
+		List<String> listMsg5 = new ArrayList<String>();
 		List<IPedidosLinsModel> listPreventaLine = new ArrayList<IPedidosLinsModel>();
 		int orderID = -1;
 		String documentNo = "";
@@ -1032,17 +1069,15 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						sql.append(" ORDER BY o.DatePromised");
 				PreparedStatement pst = DB.prepareStatement(sql.toString(), get_TrxName());
 				ResultSet rs = pst.executeQuery();
-				String msg = "";
+//				String msg = "";
 				int count = 0;
 				while (rs.next()) {
 					++count;
 					orderID = rs.getInt("C_Order_ID");
 					documentNo = rs.getString("DocumentNo");
 					if (new BigDecimal(lin.getCanLinPed()).compareTo(rs.getBigDecimal("QtyEntered")) > 0) {
-						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad en orden de compra "+rs.getString("DocumentNo") + "("+rs.getBigDecimal("QtyEntered")+")";
+						listMsg2.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada: "+lin.getCanLinPed()+", cantidad OC: "+rs.getBigDecimal("QtyEntered"));
 						continue;
-					} else {
-						msg = "";
 					}
 					// Consulta si cantidad ina puede ser solicitada
 					String sqlSum = "SELECT SUM(pl.Qty)"
@@ -1058,35 +1093,79 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 					BigDecimal disponible = rs.getBigDecimal("QtyEntered").subtract(sumPreventas);
 					
 					if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) < 0) {
-						msg = "Producto " + product.getValue() + " - " + product.getName() + ": Cantidad solicitada ("+lin.getCanLinPed()+") es mayor a cantidad de suma de preventas de orden de compra "+rs.getString("DocumentNo") + "("+ rs.getBigDecimal("QtyEntered") +")" +" suma preventas("+sumPreventas+")";
+						listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada en la preventa: " + lin.getCanLinPed() + ", cantidad OC: " + rs.getBigDecimal("QtyEntered") + ", cantidad Total Preventas: " + sumPreventas + ", proxima llegada " + ocProductoPorLlegar(product.getM_Product_ID(), orderID) + " <br />");
 						continue;
-					} else {
-						msg = "";
 					}
 					lin.setOrderLineID(rs.getInt("C_OrderLine_ID"));
 				}
 				if (orderID != -1 && count == 0) {
-					listMsg.add("Producto " + product.getValue() + " - " + product.getName() + ": No existe en Orden de Compra Internacional " + documentNo);
+					listMsg1.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada: " + lin.getCanLinPed() + ", orden de compra de importación:" + ocProducto(product.getM_Product_ID()));
+					listMsg4.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada: " + lin.getCanLinPed());
 				} else {
-					if (!msg.equals(""))
-						listMsg.add(msg);
-					else 
+//					if (!msg.equals(""))
+//						listMsg2.add(msg); 
+//					else 
+//						listPreventaLine.add(lin);
 						listPreventaLine.add(lin);
 				}
 				
-				if (orderID == -1 && count == 0)
-					listMsg.add("Producto " + product.getValue() + " - " + product.getName() + ": No existe Orden de Compra Internacional");
+				if (orderID == -1 && count == 0) {
+					listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + " cantidad solicitada: " + lin.getCanLinPed() + ". No se inyectó el pedido a Adempiere. Actualice su dispositivo e intente ingresar nuevamente el pedido como una nota de venta. De lo contrario comuníquese con su ejecutiva.");
+				}
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		
 		iPedidosModel.setListIPedidosLins(listPreventaLine);
-		iPedidosModel.setListMsg(listMsg);
+		iPedidosModel.setListMsg1(listMsg1);
+		iPedidosModel.setListMsg2(listMsg2);
+		iPedidosModel.setListMsg3(listMsg3);
+		iPedidosModel.setListMsg4(listMsg4);
+		iPedidosModel.setListMsg5(listMsg5);
 		iPedidosModel.setOrderID(orderID);
 		iPedidosModel.setDocumentNo(documentNo);
 		
 		return iPedidosModel;
+	}
+	
+	private String ocProducto(Integer idProduct) throws SQLException {
+		String ret = "";
+		StringBuffer sql = new StringBuffer("SELECT o.C_Order_ID, o.DocumentNo, o.DatePromised, ol.QtyEntered, ol.C_OrderLine_ID")
+				.append(" FROM C_OrderLine ol, C_Order o")
+				.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
+				.append(" AND o.DocStatus = 'CO'")
+				.append(" AND o.C_DocType_ID = 1000047")
+				.append(" AND ol.M_Product_ID = ").append(idProduct)
+				.append(" AND ol.QtyDelivered = 0")
+				.append(" ORDER BY o.DatePromised");
+		PreparedStatement pst = DB.prepareStatement(sql.toString(), get_TrxName());
+		ResultSet rs = pst.executeQuery();
+		if (rs.next()) {
+			ret = rs.getString("DocumentNo");
+		}
+		
+		return ret;
+	}
+	
+	private String ocProductoPorLlegar(Integer idProduct, Integer idOC) throws SQLException {
+		String ret = "";
+		StringBuffer sql = new StringBuffer("SELECT o.C_Order_ID, o.DocumentNo, o.DatePromised, ol.QtyEntered, ol.C_OrderLine_ID")
+				.append(" FROM C_OrderLine ol, C_Order o")
+				.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
+				.append(" AND o.DocStatus = 'CO'")
+				.append(" AND o.C_DocType_ID = 1000047")
+				.append(" AND ol.M_Product_ID = ").append(idProduct)
+				.append(" AND ol.QtyDelivered = 0")
+				.append(" AND o.C_Order_ID != ").append(idOC)
+				.append(" ORDER BY o.DatePromised");
+		PreparedStatement pst = DB.prepareStatement(sql.toString(), get_TrxName());
+		ResultSet rs = pst.executeQuery();
+		if (rs.next()) {
+			ret = rs.getString("DocumentNo");
+		}
+		
+		return ret;
 	}
 
 }
