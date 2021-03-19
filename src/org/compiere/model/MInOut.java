@@ -2182,7 +2182,44 @@ public class MInOut extends X_M_InOut implements DocAction
 			voidConfirmations();
 		}
 		else
-		{	//faaguilar OFB validacion antes de anular begin
+		{	
+			if (isSOTrx()) {
+				// se crea movimiento de anulación 
+				MMovement movement = new MMovement(getCtx(), 0, get_TrxName());
+				movement.setAD_Client_ID(getAD_Client_ID());
+				movement.setAD_Org_ID(getAD_Org_ID());
+				movement.setC_BPartner_ID(getC_BPartner_ID());
+				movement.setC_BPartner_Location_ID(getC_BPartner_Location_ID());
+				movement.setSalesRep_ID(getSalesRep_ID());
+				movement.setC_DocType_ID(1000022); //1000022: Material Movement
+				movement.set_CustomColumn("M_InOut_ID", getM_InOut_ID());
+				if (movement.save()) {
+					set_CustomColumn("ov_movement_vo_id", movement.getM_Movement_ID());
+					saveEx();
+					for (MInOutLine outLine : getLines()) {
+						MMovementLine movLine = new MMovementLine(movement);
+						movLine.setAD_Org_ID(getAD_Org_ID());
+						movLine.setM_Product_ID(outLine.getM_Product_ID());
+						movLine.setM_AttributeSetInstance_ID(outLine.getM_AttributeSetInstance_ID());
+						movLine.setLine(outLine.getLine());
+						movLine.setMovementQty(outLine.getMovementQty());
+						movLine.setM_Locator_ID(1003153); //1003153: Lampa/Patio
+						movLine.setM_LocatorTo_ID(1014776); //1014776: Inventarios/Anulaciones
+						movLine.saveEx();
+					}				
+				} else {
+					m_processMsg = "Error al generar Movimiento de anulación";
+					return false;
+				}
+				movement.setDocAction("CO");
+				if(movement.processIt ("CO")) {
+					movement.save();
+				} else {
+					m_processMsg = "Error al completar Movimiento de anulación";
+					return false;
+				}
+			}
+			//faaguilar OFB validacion antes de anular begin
 			String docno=findInvoice();
 			if(docno!=null){
 				m_processMsg = "Este Documento posee una Factura Valida Relacionada, no puede ser Anulado. :"+docno;

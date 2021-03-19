@@ -28,6 +28,7 @@ public class ApiInacatalogCyP extends SvrProcess {
 	ApiIArticulos iArticulos = new ApiIArticulos();
 	ApiIArticulosLTiposClientes iArticulosLTiposClientes = new ApiIArticulosLTiposClientes();
 	ApiIArticulosTyCs iArticulosTyCs = new ApiIArticulosTyCs();
+	ApiIArticulosTyCIdis iArticulosTyCIdis = new ApiIArticulosTyCIdis();
 	ApiIArticulosLFams iArticulosLFams = new ApiIArticulosLFams();
 	ApiITarifasLins iTarifasLins = new ApiITarifasLins();
 	ApiICobros iCobros = new ApiICobros();
@@ -123,6 +124,10 @@ public class ApiInacatalogCyP extends SvrProcess {
 			System.out.println("Inicio iArticulosTyCs...");
 			iArticulosTyCs.doIt();
 			System.out.println("Fin iArticulosTyCs");
+			
+			System.out.println("Inicio iArticulosTyCIdis...");
+			iArticulosTyCIdis.doIt();
+			System.out.println("Fin iArticulosTyCIdis");
 			
 			System.out.println("Inicio iArticulosLFams...");
 			iArticulosLFams.doIt();
