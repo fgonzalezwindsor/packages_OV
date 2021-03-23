@@ -301,31 +301,35 @@ public class ProcesarPrereserva extends SvrProcess {
 											BigDecimal qty = reqLineEnd.getQty();
 											BigDecimal qtyReserved = new BigDecimal(reqLineEnd.get_ValueAsInt("QtyReserved"));
 											BigDecimal qtyUsed = new BigDecimal(reqLineEnd.get_ValueAsInt("QtyUsed"));
-											/*
+
 											DB.executeUpdate("UPDATE M_RequisitionLine SET Qty = Qty + "+qty+", QtyReserved = QtyReserved + " + qtyReserved + ", qtyused = qtyused + "+qtyUsed+
 													" WHERE M_RequisitionLine_ID = "+newRequisitionLine.getM_RequisitionLine_ID(), get_TrxName());
-											*/
+
+											/*
 											DB.executeUpdate("UPDATE M_RequisitionLine SET Qty = Qty + "+qtyReserved+", qtyused = 0 "+
 													" WHERE M_RequisitionLine_ID = "+newRequisitionLine.getM_RequisitionLine_ID(), get_TrxName());
+											*/
 											commitEx();
 										} else {
 											int rl_id = Integer.parseInt(DB.getSQLValueString(null, "Select NEXTIDFUNC(920,'N') from c_charge where c_charge_ID=1000010"));
 											BigDecimal qty = reqLineEnd.getQty();
 											BigDecimal qtyReserved = new BigDecimal(reqLineEnd.get_ValueAsInt("QtyReserved"));
 											BigDecimal qtyUsed = new BigDecimal(reqLineEnd.get_ValueAsInt("QtyUsed"));
-					                        /*
+					                        
 											StringBuffer sqlInsert = new StringBuffer ("INSERT"
 					                        		+ " INTO M_RequisitionLine (M_Requisition_ID, M_RequisitionLine_ID, Line, M_Product_ID, Qty,"
 					                        		+ " QtyReserved, QtyUsed, AD_Client_ID, AD_Org_ID, Created, CreatedBy, IsActive, Updated, UpdatedBy, C_UOM_ID)"
 					                        		+ " VALUES ("+newRequisition.getM_Requisition_ID()+","+rl_id+","+ i +","+reqLineEnd.getM_Product_ID()+","+qty+","
 					                        		+ qtyReserved+","+qtyUsed+",1000000,1000000,sysdate,100,'Y', sysdate, 100,"+reqLineEnd.getC_UOM_ID()+")");
-					                        */
+					                        
+											/*
 											StringBuffer sqlInsert = new StringBuffer ("INSERT"
 					                        		+ " INTO M_RequisitionLine (M_Requisition_ID, M_RequisitionLine_ID, Line, M_Product_ID, Qty,"
 					                        		+ " QtyReserved, QtyUsed, AD_Client_ID, AD_Org_ID, Created, CreatedBy, IsActive, Updated, UpdatedBy, C_UOM_ID)"
 					                        		+ " VALUES ("+newRequisition.getM_Requisition_ID()+","+rl_id+","+ i +","+reqLineEnd.getM_Product_ID()+","+qtyReserved+","
 					                        		+ 0+","+0+",1000000,1000000,sysdate,100,'Y', sysdate, 100,"+reqLineEnd.getC_UOM_ID()+")");
 					                        DB.executeUpdate(sqlInsert.toString(), get_TrxName());
+					                        */
 					                        commitEx();
 										}
 										
@@ -361,12 +365,13 @@ public class ProcesarPrereserva extends SvrProcess {
 									if (reqLineID != -1) {
 										MRequisitionLine newRequisitionLine = new MRequisitionLine(Env.getCtx(), reqLineID, get_TrxName());
 										BigDecimal qty = newRequisitionLine.getQty().add(preLine.getQty());
-										//BigDecimal qtyReserved = new BigDecimal(newRequisitionLine.get_ValueAsInt("Qtyreserved")).add(preLine.getQty());
+										BigDecimal qtyReserved = new BigDecimal(newRequisitionLine.get_ValueAsInt("Qtyreserved")).add(preLine.getQty());
 										BigDecimal qtyUsed = new BigDecimal(newRequisitionLine.get_ValueAsInt("QtyUsed"));
 										StringBuffer sqlUpdate = new StringBuffer("UPDATE M_RequisitionLine"
-												+ " SET Qty = " + qty + ","  //"+qty+","
-												//+ "     Qtyreserved = "+qtyReserved+","
-												+ "     QtyUsed = 0" //+qtyUsed
+												+ " SET Qty = " + qty + "," 
+												+ "     Qtyreserved = "+qtyReserved+","
+												+ "     QtyUsed = " +qtyUsed
+												//+ "     QtyUsed = 0" //+qtyUsed
 												+ " WHERE M_RequisitionLine_ID = "+reqLineID);
 										DB.executeUpdate(sqlUpdate.toString(), get_TrxName());
 				                        commitEx();
