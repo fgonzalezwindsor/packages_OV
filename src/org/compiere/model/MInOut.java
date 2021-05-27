@@ -46,6 +46,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.EMail;
 import org.compiere.util.Env;
+import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.compiere.util.TimeUtil;
 import org.ofb.model.OFBForward;
@@ -1335,6 +1336,37 @@ public class MInOut extends X_M_InOut implements DocAction
 		}
 		//faaguilar OFB crea orden que representa carpeta de importacion End
 		
+		// Para recibos de llegadas Openvia
+		if (get_ValueAsInt("OV_LLEGADA_ID") != 0) {
+			String sqlOrder = "SELECT C_Order_ID"
+					+ " FROM OV_Llegada"
+					+ " WHERE OV_Llegada_ID = " + get_ValueAsInt("OV_LLEGADA_ID");
+			int C_Order_ID = DB.getSQLValue(get_TrxName(), sqlOrder);
+			MOrder order = new MOrder(getCtx(), C_Order_ID, get_TrxName());
+			if (order.get_Value("OV_OCMCERRADA").equals("Y")) {
+				m_processMsg = "Orden de Compra Madre Cerrada";
+				return DocAction.STATUS_Invalid;
+			}
+//
+			setM_Warehouse_ID(1000029); // Llegada
+			String sql = "UPDATE M_Locator"
+					+ " SET M_WareHouse_ID = 1000029"
+					+ " WHERE M_Locator_ID IN (SELECT M_Locator_ID FROM M_InOutLine WHERE M_InOut_ID = " + getM_InOut_ID() + " GROUP BY M_Locator_ID)";
+			
+			DB.executeUpdate(sql, get_TrxName());
+			
+			// Actualiza cantidad recibida en llegada
+			MInOutLine[] lines = new MInOut(getCtx(), getM_InOut_ID(), null).getLines();
+			for (MInOutLine outLine : lines) {
+				if (outLine.get_Value("OV_LlegadaLine_ID") != null && outLine.get_Value("OV_LlegadaLine_ID") != "") {
+					MLlegadaLine llegadaLine = new MLlegadaLine(getCtx(), (Integer)outLine.get_Value("OV_LlegadaLine_ID"), null);
+					llegadaLine.set_CustomColumn("QtyDelivered", ((BigDecimal)llegadaLine.get_Value("QtyDelivered")).add(outLine.getQtyEntered()));
+					llegadaLine.saveEx();
+				}
+			}
+		}
+		// Para recibos de llegadas Openvia
+		
 		//	Outstanding (not processed) Incoming Confirmations ?
 		MInOutConfirm[] confirmations = getConfirmations(true);
 		for (int i = 0; i < confirmations.length; i++)
@@ -1817,6 +1849,9 @@ public class MInOut extends X_M_InOut implements DocAction
 				EMail email4 = M_Client.createEMail(correo,"Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
 				EMail.SENT_OK.equals(email4.send());
 			}
+			
+			EMail email5 = M_Client.createEMail("venta@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
+			EMail.SENT_OK.equals(email5.send());
 		}
 		
 		m_processMsg = info.toString();
@@ -2191,7 +2226,10 @@ public class MInOut extends X_M_InOut implements DocAction
 				return false;
 			}
 			if (voidOFB()) {
-				if (isSOTrx()) {
+				// M_WareHouse_ID = 1000001 Lampa
+				// C_DocType_ID = 1000011 MM Entrega de Material
+				// C_DocType_ID = 1000120 MM Entrega Electronica
+				if (isSOTrx() && getM_Warehouse_ID() == 1000001 && (getC_DocType_ID() == 1000011 || getC_DocType_ID() == 1000120)) {
 					// se crea movimiento de anulación 
 					MMovement movement = new MMovement(getCtx(), 0, get_TrxName());
 					movement.setAD_Client_ID(getAD_Client_ID());
@@ -2205,15 +2243,17 @@ public class MInOut extends X_M_InOut implements DocAction
 						set_CustomColumn("ov_movement_vo_id", movement.getM_Movement_ID());
 						saveEx();
 						for (MInOutLine outLine : getLines()) {
-							MMovementLine movLine = new MMovementLine(movement);
-							movLine.setAD_Org_ID(getAD_Org_ID());
-							movLine.setM_Product_ID(outLine.getM_Product_ID());
-							movLine.setM_AttributeSetInstance_ID(outLine.getM_AttributeSetInstance_ID());
-							movLine.setLine(outLine.getLine());
-							movLine.setMovementQty(outLine.getMovementQty());
-							movLine.setM_Locator_ID(1003153); //1003153: Lampa/Patio
-							movLine.setM_LocatorTo_ID(1014776); //1014776: Inventarios/Anulaciones
-							movLine.saveEx();
+							if (outLine.getQtyEntered().compareTo(BigDecimal.ZERO) != 0) {
+								MMovementLine movLine = new MMovementLine(movement);
+								movLine.setAD_Org_ID(getAD_Org_ID());
+								movLine.setM_Product_ID(outLine.getM_Product_ID());
+								movLine.setM_AttributeSetInstance_ID(outLine.getM_AttributeSetInstance_ID());
+								movLine.setLine(outLine.getLine());
+								movLine.setMovementQty(outLine.getMovementQty());
+								movLine.setM_Locator_ID(1003153); //1003153: Lampa/Patio
+								movLine.setM_LocatorTo_ID(1014776); //1014776: Inventarios/Anulaciones
+								movLine.saveEx();
+							}
 						}				
 					} else {
 						m_processMsg = "Error al generar Movimiento de anulación";
@@ -2231,6 +2271,22 @@ public class MInOut extends X_M_InOut implements DocAction
 					EMail email = M_Client.createEMail(correoTo, "Aviso por anulacion de picking completado "+new Timestamp(System.currentTimeMillis()), "Se ha creado el movimiento " + movement.getDocumentNo() + " por anulación de picking " + getDocumentNo() + ".",true);
 					EMail.SENT_OK.equals(email.send());
 				}
+				
+				// Anular recibo con Llegadas asociadas
+				if (get_ValueAsInt("OV_LLEGADA_ID") != 0) {
+					MOrder order = new MOrder(getCtx(), getC_Order_ID(), get_TrxName());
+					if (!order.get_Value("OV_OCMCERRADA").equals("Y")) {
+						MInOutLine[] lines = new MInOut(getCtx(), getM_InOut_ID(), null).getLines();
+						for (MInOutLine outLine : lines) {
+							if (outLine.get_Value("OV_LlegadaLine_ID") != null && outLine.get_Value("OV_LlegadaLine_ID") != "") {
+								MLlegadaLine llegadaLine = new MLlegadaLine(getCtx(), (Integer)outLine.get_Value("OV_LlegadaLine_ID"), null);
+								llegadaLine.set_CustomColumn("QtyDelivered", ((BigDecimal)llegadaLine.get_Value("QtyDelivered")).add(outLine.getQtyEntered()));
+								llegadaLine.saveEx();
+							}
+						}
+					}
+				}
+				// Fin Anular recibo con Llegadas asociadas
 				return true;
 			} else {
 				return false;

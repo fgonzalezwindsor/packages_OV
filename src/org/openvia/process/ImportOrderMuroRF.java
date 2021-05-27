@@ -312,7 +312,7 @@ public class ImportOrderMuroRF extends SvrProcess
 					//	log.fine("Precio=" + Integer.parseInt(DB.getSQLValueString(null, "Select coalesce((PriceList),0) from m_productprice where isactive='Y'  and M_PriceList_Version_ID=1000039 "+
 					//			" and m_product_id="+rs.getInt("M_Product_ID")) ));
 					
-						int precio= Integer.parseInt(DB.getSQLValueString(null, "Select coalesce((PriceList),0) from m_productprice where isactive='Y'  and M_PriceList_Version_ID=1000039 "+
+						int precio= Integer.parseInt(DB.getSQLValueString(null, "Select round(coalesce((PriceList),0),0) from m_productprice where isactive='Y'  and M_PriceList_Version_ID=1000039 "+
 								" and m_product_id="+rs.getInt("M_Product_ID")) ); 
 						
 						BigDecimal priceProduct = new BigDecimal(precio); //MProductPrice.get(getCtx(), 1000039, rs.getInt("M_Product_ID"), get_TrxName()).getPriceList();
@@ -761,193 +761,159 @@ public class ImportOrderMuroRF extends SvrProcess
 				} //while que recorre los productos de las ordenes
 				
 				//Crear nota de venta sin errores
-				if (errorp + errorbp +  errorbpl +  erroruser + errorst==0)
-				{
+				if (errorp + errorbp +  errorbpl +  erroruser + errorst==0) {
 					//sin errores controlados
 					MOrder order = null;
 					int contador = 1;
 					int contadordoc=0;
 					boolean completar = true;
 					
+					// Se guardan unidades y productos Muro
+					String sqlNumProductos = "SELECT COUNT(DISTINCT(M_Product_ID)) FROM C_OrderB2CLine WHERE C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
+					String sqlUnidadesMuro = "SELECT SUM(QtyEntered) FROM C_OrderB2CLine WHERE C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
+					
 					//validar que todas las lineas esten okey y que hau lineas
 					String sqlvl = "Select count(*) cuenta from C_OrderB2CLine where C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
-					
-					try
-					{
-						
+					try {
 						PreparedStatement pstmtvl = DB.prepareStatement (sqlvl, get_TrxName());
 						ResultSet rsvl = pstmtvl.executeQuery ();
-						
-						if(rsvl.next())
-						{
-							if(rsvl.getInt("cuenta")>0)
-							{
+						if(rsvl.next()) {
+							if(rsvl.getInt("cuenta")>0) {
 								//valida que todas las lineas esten OK
 								String sqlvlok= "Select count(*) cuenta from C_OrderB2CLine where PASARAOV<>'Y' and C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
-								try
-								{
-									
+								try {
 									PreparedStatement pstmtvlok = DB.prepareStatement (sqlvlok, get_TrxName());
-									ResultSet rsvlok = pstmtvlok.executeQuery ();
+									ResultSet rsvlok = pstmtvlok.executeQuery();
 									
-									if(rsvlok.next())
-										if(rsvlok.getInt("cuenta")==0)
-										{
+									if(rsvlok.next()) {
+										if(rsvlok.getInt("cuenta")==0) {
 											String sqllines = "Select * from C_OrderB2CLine where  C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
 										//	int aux=1;
-										
-											try
-											{
-												
+											try {
 												PreparedStatement pstmtlines = DB.prepareStatement (sqllines, get_TrxName());
 												ResultSet rslines = pstmtlines.executeQuery ();
-											while (rslines.next())
-											{
-												if(order==null)
-												{
-											//		noInsert ++;
-													contadordoc=contadordoc+1;
-													order = new MOrder (getCtx() ,0,get_TrxName() );
-													MBPartner bp = new MBPartner (getCtx(), ob2c.getC_BPartner_ID(), get_TrxName());
-													order.setClientOrg (ob2c.getAD_Client_ID(),ob2c.getAD_Org_ID());
-													if (ob2c.getC_BPartner_Location_ID()==1011338)
-													order.set_CustomColumn("MedioCompra", "Internet");
-													order.setC_DocTypeTarget_ID(1000030);
-													//else
-													//order.setC_DocTypeTarget_ID(1000568);	
-													order.setIsSOTrx(true);
-													order.setDeliveryRule("O");
-													order.setC_BPartner_ID(ob2c.getC_BPartner_ID());
-													order.setC_BPartner_Location_ID(ob2c.getC_BPartner_Location_ID());
-													order.setPOReference(ob2c.getPOReference());
-													order.setAD_User_ID(ob2c.getSalesRep_ID());
-													//	Bill Partner
-													order.setBill_BPartner_ID(ob2c.getC_BPartner_ID());
-													order.setBill_Location_ID(ob2c.getC_BPartner_Location_ID());
-													//
-													if (ob2c.getDescription() != null)
-														order.setDescription(ob2c.getDescription());
-												//	if (ob2c.get_ValueAsString ("FechaPrometidaInt") != null)
-												//		order.set_ValueOfColumn("FechaPrometidaInt", ob2c.get_ValueAsString ("FechaPrometidaInt"));
-													order.setC_PaymentTerm_ID(bp.getC_PaymentTerm_ID());
-													order.setM_PriceList_ID(ob2c.getM_PriceList_ID());
-													order.setM_Warehouse_ID(ob2c.getM_Warehouse_ID());
-													order.setSalesRep_ID(ob2c.getSalesRep_ID());
-													//BigDecimal stbd= new BigDecimal(ob2c.getC_BPartner_SubTienda_ID());
-													//if(stbd!=null && ob2c.getC_BPartner_SubTienda_ID()>0)
-													//	order.set_CustomColumn("C_BPartner_SubTienda_ID", ob2c.getC_BPartner_SubTienda_ID());
-													//
-													order.setDateOrdered(ob2c.getDateAcct()   );
-													order.setDateAcct( ob2c.getDateAcct());
-													order.setInvoiceRule("D");
-													
-													//Faltan firmas horas de firma y quien firmo forma de compra medio compra
-													//
-													order.set_CustomColumn("FIRMA2", "Y");
-											//		order.set_CustomColumn("FIRMA3", "Y");
-													order.set_CustomColumn("FIRMACOM", ob2c.getDateAcct());
-												//	order.set_CustomColumn("FIRMAFIN", ob2c.getDateAcct());
-													order.set_CustomColumn("USERFIRMCOM", 1003655); //vsandoval
-												//	order.set_CustomColumn("USERFIRMFIN", 1003303); //eumanzor
-													order.set_CustomColumn("FormaCompra", ob2c.get_Value("FormaCompra"));
-													order.set_CustomColumn("MedioCompra", "Internet");
-													order.set_CustomColumn("VentaInvierno", "N");
-													
-													order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro")); 
-													//	order.set_CustomColumn("USERFIRMFIN", 1003303); //eumanzor
+												while (rslines.next()) {
+													if(order==null) {
+														//noInsert ++;
+														contadordoc=contadordoc+1;
+														order = new MOrder (getCtx() ,0,get_TrxName() );
+														MBPartner bp = new MBPartner (getCtx(), ob2c.getC_BPartner_ID(), get_TrxName());
+														order.setClientOrg (ob2c.getAD_Client_ID(),ob2c.getAD_Org_ID());
+														if (ob2c.getC_BPartner_Location_ID()==1011338)
+														order.set_CustomColumn("MedioCompra", "Internet");
+														order.setC_DocTypeTarget_ID(1000030);
+														order.setIsSOTrx(true);
+														order.setDeliveryRule("O");
+														order.setC_BPartner_ID(ob2c.getC_BPartner_ID());
+														order.setC_BPartner_Location_ID(ob2c.getC_BPartner_Location_ID());
+														order.setPOReference(ob2c.getPOReference());
+														order.setAD_User_ID(ob2c.getSalesRep_ID());
+														//	Bill Partner
+														order.setBill_BPartner_ID(ob2c.getC_BPartner_ID());
+														order.setBill_Location_ID(ob2c.getC_BPartner_Location_ID());
+														if (ob2c.getDescription() != null)
+															order.setDescription(ob2c.getDescription());
+														order.setC_PaymentTerm_ID(bp.getC_PaymentTerm_ID());
+														order.setM_PriceList_ID(ob2c.getM_PriceList_ID());
+														order.setM_Warehouse_ID(ob2c.getM_Warehouse_ID());
+														order.setSalesRep_ID(ob2c.getSalesRep_ID());
+														order.setDateOrdered(ob2c.getDateAcct());
+														order.setDateAcct( ob2c.getDateAcct());
+														order.setInvoiceRule("D");
+														//Faltan firmas horas de firma y quien firmo forma de compra medio compra
+														order.set_CustomColumn("FIRMA2", "Y");
+														order.set_CustomColumn("FIRMACOM", ob2c.getDateAcct());
+														order.set_CustomColumn("USERFIRMCOM", 1003655); //vsandoval
+														order.set_CustomColumn("FormaCompra", ob2c.get_Value("FormaCompra"));
+														order.set_CustomColumn("MedioCompra", "Internet");
+														order.set_CustomColumn("VentaInvierno", "N");
+														order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro")); 
 														order.set_CustomColumn("C_ORDERMURO_id", ob2c.get_ValueAsInt("C_OrderMuro_ID"));
 														order.set_CustomColumn("NOMBRESHOPIFY", ob2c.get_Value("NOMBRESHOPIFY"));
 														order.set_CustomColumn("DIRECCIONSHOPIFY", ob2c.get_Value("DIRECCIONSHOPIFY"));
-													order.save();
-												}
-												if (contador<=25)
-												{
-												//	  noInsertLine++;
-													MOrderLine line = new MOrderLine(order);
-													X_C_OrderB2CLine lines= new X_C_OrderB2CLine (getCtx() , rslines.getInt("C_OrderB2CLine_ID"),get_TrxName());
-												// 	line.setC_Order_ID(order.getC_Order_ID());
-													line.setM_Product_ID(lines.getM_Product_ID());
-													line.setPriceEntered( new BigDecimal  (lines.getPriceEntered()));
-													line.setPriceActual(new BigDecimal  (lines.getPriceEntered()));
-													line.setPriceList(new BigDecimal  (lines.getPriceEntered()));
-													line.setQtyEntered( (lines.getQtyEntered()));
-													line.setLine(contador*10);
-													line.setPrice(new BigDecimal  (lines.getPriceEntered()));
-													line.setQty(lines.getQtyEntered());
-													line.set_CustomColumn("Demand", lines.getQtyEntered());
-													line.setC_Tax_ID(1000000);
-													//line.set_CustomColumn("M_RequisitionLine_ID",(Integer) lines.get_Value("M_RequisitionLine_ID"));
-													
-												//	line.setLineNetAmt(rs.getBigDecimal("LineNetAmt"));
-													//int la = rs.getBigDecimal("PriceEntered").intValue() * rs.getBigDecimal("QtyEntered").intValue();
-													//BigDecimal lab = new BigDecimal (la);
-													
-													
-														
-														//line.set_CustomColumn("Discount2", rs.getBigDecimal("Discount2"));
-														//line.set_CustomColumn("Discount3", rs.getBigDecimal("Discount3"));
+														// Guardar numproductos, unidadesmuro
+														order.set_CustomColumn("numproductos", DB.getSQLValue(get_TrxName(), sqlNumProductos));
+														order.set_CustomColumn("unidadesmuro", DB.getSQLValue(get_TrxName(), sqlUnidadesMuro));
+														order.save();
+													}
+													if (contador<=25) {
+														MOrderLine line = new MOrderLine(order);
+														X_C_OrderB2CLine lines= new X_C_OrderB2CLine (getCtx() , rslines.getInt("C_OrderB2CLine_ID"),get_TrxName());
+														line.setM_Product_ID(lines.getM_Product_ID());
+														line.setPriceEntered( new BigDecimal  (lines.getPriceEntered()));
+														line.setPriceActual(new BigDecimal  (lines.getPriceEntered()));
+														line.setPriceList(new BigDecimal  (lines.getPriceEntered()));
+														line.setQtyEntered( (lines.getQtyEntered()));
+														line.setLine(contador*10);
+														line.setPrice(new BigDecimal  (lines.getPriceEntered()));
+														line.setQty(lines.getQtyEntered());
+														line.set_CustomColumn("Demand", lines.getQtyEntered());
+														line.setC_Tax_ID(1000000);
 														BigDecimal df = new BigDecimal (0);
-														line.set_CustomColumn("Discount2", df);
-														//BigDecimal df = new BigDecimal (0);
-														line.set_CustomColumn("Discount3", df);
-														//BigDecimal df = new BigDecimal (0);
 														line.set_CustomColumn("Discount", df);
+														line.set_CustomColumn("Discount2", df);
 														line.set_CustomColumn("Discount3", df);
 														line.set_CustomColumn("Discount4", df);
 														line.set_CustomColumn("Discount5", df);
 														line.set_CustomColumn("NotPrint", "N");
-													
-													
-													line.setLineNetAmt();
-													line.set_CustomColumn("M_RequisitionLine_ID",(Integer) lines.get_Value("M_RequisitionLine_ID"));
-													if(!line.save()) {
-														completar = false;
-														line.setQty(BigDecimal.ZERO);
-														line.set_CustomColumn("NotPrint", "Y");
-														line.save();
+														line.setLineNetAmt();
+														line.set_CustomColumn("M_RequisitionLine_ID",(Integer) lines.get_Value("M_RequisitionLine_ID"));
+														if(!line.save()) {
+															completar = false;
+															line.setQty(BigDecimal.ZERO);
+															line.set_CustomColumn("NotPrint", "Y");
+															line.save();
+														}
+														lines.setC_Order_ID(order.getC_Order_ID());
+														lines.setProcessed(true);
+														lines.save();
+														contador++;
 													}
-													//line.set_ValueOfColumn("TEMPLINE_ID", rs.getInt("M_INVENTORYLINETEMP_ID"));
-													
-													lines.setC_Order_ID(order.getC_Order_ID());
-													lines.setProcessed(true);
-													lines.save();
-													contador++;
-												}
-											if (contador==26)
-											{
+													if (contador==26) {
+														if(completar) {
+															String sqlNumProductosOrden = "SELECT COUNT(DISTINCT(M_Product_ID)) FROM C_OrderLine WHERE C_Order_ID="+order.getC_Order_ID();
+															String sqlUnidadesMuroOrden = "SELECT SUM(QtyEntered) FROM C_OrderLine WHERE C_Order_ID="+order.getC_Order_ID();
+															if (new BigDecimal(DB.getSQLValue(get_TrxName(), sqlNumProductosOrden)).compareTo(new BigDecimal(DB.getSQLValue(get_TrxName(), sqlNumProductos)))==0 || new BigDecimal(DB.getSQLValue(get_TrxName(), sqlUnidadesMuroOrden)).compareTo(new BigDecimal(DB.getSQLValue(get_TrxName(), sqlUnidadesMuro)))==0) {
+																order.processIt(X_C_Order.DOCACTION_Complete);
+																order.save();
+																order.setDocAction("CO");
+																order.processIt ("CO");
+																order.save();
+															} else {
+																order.setDescription("No se pudo completar porque la orden se ha generado con diferencia en cantidades");
+																order.saveEx();
+															}
+															docok++;
+														}
+														contador=1;
+														order=null;
+													}
+												} //while
+												order.set_CustomColumn("FIRMA2", "Y");
+												order.set_CustomColumn("FIRMA3", "Y");
 												if(completar) {
-													order.processIt(X_C_Order.DOCACTION_Complete);
-													 
-													order.save();
-													order.setDocAction("CO"); 
-													 order.processIt ("CO");
+													// Comparar con Orden CW
+													String sqlNumProductosOrden = "SELECT COUNT(DISTINCT(M_Product_ID)) FROM C_OrderLine WHERE C_Order_ID="+order.getC_Order_ID();
+													String sqlUnidadesMuroOrden = "SELECT SUM(QtyEntered) FROM C_OrderLine WHERE C_Order_ID="+order.getC_Order_ID();
+													if (new BigDecimal(DB.getSQLValue(get_TrxName(), sqlNumProductosOrden)).compareTo(new BigDecimal(DB.getSQLValue(get_TrxName(), sqlNumProductos)))==0 || new BigDecimal(DB.getSQLValue(get_TrxName(), sqlUnidadesMuroOrden)).compareTo(new BigDecimal(DB.getSQLValue(get_TrxName(), sqlUnidadesMuro)))==0) {
+														order.processIt(X_C_Order.DOCACTION_Complete);
 														order.save();
-													docok++;
+														order.setDocAction("CO");
+														order.processIt ("CO");
+													} else {
+														order.setDescription("No se pudo completar porque la orden se ha generado con diferencia en cantidades");
+														order.saveEx();
+													}
 												}
-												contador=1;
-												
-												order=null;
-											}
-											//aux++;
-											} //while
-											
-											order.set_CustomColumn("FIRMA2", "Y");
-											order.set_CustomColumn("FIRMA3", "Y");
-											if(completar) {
-												order.processIt(X_C_Order.DOCACTION_Complete);
 												order.save();
-												order.setDocAction("CO");
-												order.processIt ("CO");
-											}
-											order.save();
 											
-											ob2c.setProcessed(true);
-											ob2c.save();
-											contador=1;
-											docok++;
-											order=null;
+												ob2c.setProcessed(true);
+												ob2c.save();
+												contador=1;
+												docok++;
+												order=null;
 											
-											sql = new StringBuffer ("UPDATE I_OrderB2C "
+												sql = new StringBuffer ("UPDATE I_OrderB2C "
 													  + "SET I_IsImported='Y' , processed='Y' "
 													  + "WHERE bpartnervalue='76281810' and POReference='" + ob2c.getPOReference()+"'");
 													 
@@ -958,57 +924,37 @@ public class ImportOrderMuroRF extends SvrProcess
 											
 
 												commitEx();
-											rslines.close();
-											pstmtlines.close();
-										}
-										catch(Exception e)
-										{
-											
-											log.log(Level.SEVERE, e.getMessage(), e);
-										}	
-											
-										}else
+												rslines.close();
+												pstmtlines.close();
+											} catch(Exception e) {
+												log.log(Level.SEVERE, e.getMessage(), e);
+											}	
+										} else {
 											errorsl=10;
-									
+										}
+									}
 									rsvlok.close();
 									pstmtvlok.close();
-								}
-								catch(Exception e)
-								{
-									
+								} catch(Exception e) {
 									log.log(Level.SEVERE, e.getMessage(), e);
 								}
-							}else
-							{
+							} else {
 								errorsl=9;
 							}
 						}
-						
 						rsvl.close();
 						pstmtvl.close();
-					}
-					catch(Exception e)
-					{
-						
+					} catch(Exception e) {
 						log.log(Level.SEVERE, e.getMessage(), e);
 					}
-					
-				}
-				else
-				{
-					
-					if (errorbp!=0)
-					{
+				} else {
+					if (errorbp!=0) {
 						ob2c.set_CustomColumn("ErrorMsg", menj1 );
 						docnotok++;
-					}
-					else if (errorbpl!=0)
-					{
-							ob2c.set_CustomColumn("ErrorMsg", menj2);
-							docnotok++;
-					}
-					else if (erroruser!=0)
-					{
+					} else if (errorbpl!=0) {
+						ob2c.set_CustomColumn("ErrorMsg", menj2);
+						docnotok++;
+					} else if (erroruser!=0) {
 						ob2c.set_CustomColumn("ErrorMsg", menj6);
 						docnotok++;
 					}
@@ -1019,10 +965,7 @@ public class ImportOrderMuroRF extends SvrProcess
 				
 				rs.close();
 				pstmt.close();
-			}
-			catch(Exception e)
-			{
-				
+			} catch(Exception e) {
 				log.log(Level.SEVERE, e.getMessage(), e);
 			}
 		}//for que recorre las ordenes de compra subidas

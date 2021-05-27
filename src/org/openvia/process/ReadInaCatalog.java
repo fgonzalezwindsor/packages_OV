@@ -375,7 +375,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										if (iPedidos.getListMsg3().size() > 0) {
 											//Encabezado mensaje
 											mensaje.append("Orden de compra de importación no existe<br />");
-											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque no tienen una orden de compra asociada");
+											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque no tienen una orden de compra asociada<br />");
 //											MBPartner partner = bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString());
 //											mensaje.append("La preventa "+documentNoInaCat+" asociad/a al cliente " + partner.getValue() + " - " + partner.getName() + " no puede incluir los siguientes productos ya que no hay stock disponible.<br />");
 //											mensaje.append("La preventa generada "+documentNoInaCat+" no puede incluir los siguientes productos porque no tienen una orden de compra asociada: " + iPedidos.getDocumentNo() + "<br />");
@@ -417,6 +417,9 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										
 										EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email5.send());
+										
+										EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
+										EMail.SENT_OK.equals(email6.send());
 									} else {
 										preventa.setDocAction("CO");
 										if(preventa.processIt ("CO"))
@@ -1063,7 +1066,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						.append(" AND o.C_DocType_ID = 1000047")
 						.append(" AND ol.M_Product_ID = ").append(product.getM_Product_ID())
 						.append(" AND ol.QtyDelivered = 0")
-						.append(" AND ol.QtyEntered > ").append(lin.getCanLinPed());
+						//.append(" AND ol.QtyEntered > ").append(lin.getCanLinPed())
+						.append(" AND ol.QtyEntered > coalesce((SELECT sum(pl.Qty) "
+								+ " FROM OV_Prereserva p, OV_PrereservaLine pl "
+								+ " WHERE p.OV_Prereserva_ID = pl.OV_Prereserva_ID "
+								+ " AND pl.M_Product_ID = " + product.getM_Product_ID()
+								+ " AND pl.C_OrderLine_ID = ol.C_OrderLine_ID"
+								+ " AND p.DocStatus IN ('CO','CL')),0)")
+						.append(" AND rownum <= 1");
 						if (orderID != -1)
 							sql.append("AND ol.C_Order_ID = ").append(orderID);
 						sql.append(" ORDER BY o.DatePromised");
@@ -1093,7 +1103,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 					BigDecimal disponible = rs.getBigDecimal("QtyEntered").subtract(sumPreventas);
 					
 					if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) < 0) {
-						listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada en la preventa: " + lin.getCanLinPed() + ", cantidad OC: " + rs.getBigDecimal("QtyEntered") + ", cantidad Total Preventas: " + sumPreventas + ", proxima llegada " + ocProductoPorLlegar(product.getM_Product_ID(), orderID) + " <br />");
+						listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada en la preventa: " + lin.getCanLinPed() + ", cantidad OC " + documentNo + ": " + rs.getBigDecimal("QtyEntered") + ", cantidad Total Preventas: " + sumPreventas + ", proximas llegadas " + ocProductoPorLlegar(product.getM_Product_ID(), orderID) + " <br />");
 						continue;
 					}
 					lin.setOrderLineID(rs.getInt("C_OrderLine_ID"));
@@ -1149,7 +1159,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 	}
 	
 	private String ocProductoPorLlegar(Integer idProduct, Integer idOC) throws SQLException {
-		String ret = "";
+		StringBuffer ret = new StringBuffer();
 		StringBuffer sql = new StringBuffer("SELECT o.C_Order_ID, o.DocumentNo, o.DatePromised, ol.QtyEntered, ol.C_OrderLine_ID")
 				.append(" FROM C_OrderLine ol, C_Order o")
 				.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
@@ -1158,14 +1168,22 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 				.append(" AND ol.M_Product_ID = ").append(idProduct)
 				.append(" AND ol.QtyDelivered = 0")
 				.append(" AND o.C_Order_ID != ").append(idOC)
+				.append(" AND ol.QtyEntered > 0")
 				.append(" ORDER BY o.DatePromised");
 		PreparedStatement pst = DB.prepareStatement(sql.toString(), get_TrxName());
 		ResultSet rs = pst.executeQuery();
-		if (rs.next()) {
-			ret = rs.getString("DocumentNo");
+		while (rs.next()) {
+			if (ret.toString().isEmpty())
+				ret.append(rs.getString("DocumentNo"));
+			else
+				ret.append(", ").append(rs.getString("DocumentNo"));
 		}
 		
-		return ret;
+		if (ret.toString().isEmpty()) {
+			ret.append("sin proximas llegadas");
+		}
+		
+		return ret.toString();
 	}
 
 }

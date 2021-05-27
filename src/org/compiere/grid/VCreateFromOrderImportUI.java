@@ -438,7 +438,7 @@ public class VCreateFromOrderImportUI extends CreateFromPrereserva implements Ac
 		sql.append(" LEFT Join C_PaymentTerm pter ON (o.C_PaymentTerm_ID=pter.C_PaymentTerm_ID) ");
 		sql.append(" WHERE o.Processed='Y' AND o.DocStatus IN ('CO','CL')  and o.AD_Client_ID="	+ Env.getAD_Client_ID(Env.getCtx()));
 		sql.append(" AND ol.M_Product_ID = " + M_Product_ID);
-		sql.append(" AND o.C_DocType_ID = 1000047 ");
+		sql.append(" AND o.C_DocType_ID IN (1000047,1000574) ");
 		sql.append(" AND ol.QtyEntered > coalesce((SELECT sum(pl.Qty) "
 												+ " FROM OV_Prereserva p, OV_PrereservaLine pl "
 												+ " WHERE p.OV_Prereserva_ID = pl.OV_Prereserva_ID "
