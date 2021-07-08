@@ -159,10 +159,10 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								requisition = null;
 								boolean tieneRequisition = false;
 								if (rs.next()) {
-									requisition = new MRequisition(getCtx(), rs.getInt("M_Requisition_ID"), get_TrxName());
+									requisition = new MRequisition(Env.getCtx(), rs.getInt("M_Requisition_ID"), get_TrxName());
 									tieneRequisition = true;
 								} else {
-									requisition = new MRequisition(getCtx(), 0, get_TrxName());
+									requisition = new MRequisition(Env.getCtx(), 0, get_TrxName());
 									requisition.setAD_Org_ID(m_AD_Org_ID);
 									requisition.set_CustomColumn("IsSotrx", "Y");
 									requisition.setC_DocType_ID(1000111); // 1000111: Reserva Fisica
@@ -299,12 +299,12 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									pst.close();
 								}
 							} else if (jsonObjPedido.get(I_iPedidos.COLUMNA_CODTIPOVENTA).toString().equals("3")) { // Nota Pre-Venta
-								preventa = new MPrereserva(getCtx(), 0, get_TrxName());
+								preventa = new MPrereserva(Env.getCtx(), 0, get_TrxName());
 								preventa.setC_DocType_ID(1000571); // 1000571: PreVenta - Nota de Venta
 								preventa.setAD_Org_ID(m_AD_Org_ID);
 								preventa.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
 								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
-									preventa.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(getCtx(), preventa.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
+									preventa.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(Env.getCtx(), preventa.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
 								else
 									preventa.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
 								preventa.set_CustomColumn("C_BPARTNER_LOCATION_ENT_ID", preventa.getC_BPartner_Location_ID());
@@ -329,30 +329,31 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									// Revisar si existe OC para preventa, si no existe no se inserta Preventa y se envia aviso
 									int line = 0;
 									for (IPedidosLinsModel lin : iPedidos.getListIPedidosLins()) {
-										MPrereservaLine preLine = new MPrereservaLine(preventa);
-										line = line+10;
-										MProduct product = productByValue(lin.getCodArticulo());
-										preLine.setLine(line);
-										preLine.setM_Product_ID(product.getM_Product_ID());
-										preLine.setC_UOM_ID(product.getC_UOM_ID());
-										preLine.setQty(new BigDecimal(lin.getCanLinPed()));
-										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
-										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
-										//BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
-										BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
-										BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
-										BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
-										preLine.setPriceActual(precioFinal);
-										preLine.set_CustomColumn("PriceEntered", precioFinal);
-										BigDecimal precioLista = MProductPrice.get(getCtx(), 1000012, product.getM_Product_ID(), get_TrxName()).getPriceList(); // M_PriceList_Version 1000012: Precios 30-03-09
-										preLine.set_CustomColumn("PriceList", precioLista!=null?precioLista:lin.getPreLinPed());
-										preLine.set_CustomColumn("Discount2", desc1);
-										preLine.set_CustomColumn("Discount3", desc2);
-										preLine.set_CustomColumn("Discount4", BigDecimal.ZERO);
-										preLine.set_CustomColumn("Discount5", BigDecimal.ZERO);
-										if (lin.getOrderLineID() != null)
+										if (lin.getOrderLineID() != null) {
+											MPrereservaLine preLine = new MPrereservaLine(preventa);
+											line = line+10;
+											MProduct product = productByValue(lin.getCodArticulo());
+											preLine.setLine(line);
+											preLine.setM_Product_ID(product.getM_Product_ID());
+											preLine.setC_UOM_ID(product.getC_UOM_ID());
+											preLine.setQty(new BigDecimal(lin.getCanLinPed()));
+											BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
+											BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
+											//BigDecimal desc2 = new BigDecimal(lin.getTpcDto02());
+											BigDecimal desc2 = new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TPCDTO03).toString());
+											BigDecimal precioConDesc1 = priceList.subtract(priceList.multiply(desc1.divide(new BigDecimal(100))));
+											BigDecimal precioFinal = precioConDesc1.subtract(precioConDesc1.multiply(desc2.divide(new BigDecimal(100))));
+											preLine.setPriceActual(precioFinal);
+											preLine.set_CustomColumn("PriceEntered", precioFinal);
+											BigDecimal precioLista = MProductPrice.get(Env.getCtx(), 1000012, product.getM_Product_ID(), get_TrxName()).getPriceList(); // M_PriceList_Version 1000012: Precios 30-03-09
+											preLine.set_CustomColumn("PriceList", precioLista!=null?precioLista:lin.getPreLinPed());
+											preLine.set_CustomColumn("Discount2", desc1);
+											preLine.set_CustomColumn("Discount3", desc2);
+											preLine.set_CustomColumn("Discount4", BigDecimal.ZERO);
+											preLine.set_CustomColumn("Discount5", BigDecimal.ZERO);
 											preLine.setC_OrderLine_ID(lin.getOrderLineID());
-										preLine.save();
+											preLine.save();
+										}
 									}
 									System.out.println("Mensajes...");
 									if (iPedidos.getListMsg1().size() > 0 || iPedidos.getListMsg2().size() > 0 || iPedidos.getListMsg3().size() > 0 || iPedidos.getListMsg4().size() > 0) {
@@ -401,7 +402,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										mensajeCompleto.append("<br />");
 										mensajeCompleto.append("No olvide completar la preventa de tránsito "+documentNoInaCat+" en Adempiere para que sea debidamente considerada");
 										
-										MClient M_Client = new MClient(getCtx(),get_TrxName());
+										MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
 										String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
 										EMail email = M_Client.createEMail(correoTo, "Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email.send());
@@ -431,13 +432,13 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									System.out.println("No se pudo guardar preventa.");
 								}
 							} else {
-								order = new MOrder(getCtx(), 0, get_TrxName());
+								order = new MOrder(Env.getCtx(), 0, get_TrxName());
 								order.setAD_Org_ID(m_AD_Org_ID);
 								order.set_CustomColumn("documentnoinacat", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
 								order.setDateOrdered(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
 								order.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
 								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
-									order.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(getCtx(), order.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
+									order.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(Env.getCtx(), order.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
 								else
 									order.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
 								order.setSalesRep_ID(salesRepByBPartner(jsonObjPedido.get(I_iPedidos.COLUMNA_CODAGENTE).toString()));
@@ -762,7 +763,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 					// Envia aviso
 					StringWriter sw = new StringWriter();
 		        	e.printStackTrace(new PrintWriter(sw));
-					MClient M_Client = new MClient(getCtx(),get_TrxName());
+					MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
 					EMail email = M_Client.createEMail("raranda@comten.cl", "Error en Documento Inacatalog "+pedido+" "+new Timestamp(System.currentTimeMillis()),"Error al procesar documento inacatalog <br />" + sw.toString(),true);
 					EMail.SENT_OK.equals(email.send());
 				}
@@ -941,7 +942,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 		System.out.println("Insertar Clientes nuevos en ADempiere");
 		for (IClientesModel cliente : clientes.clientesNuevos()) {
 			if (bPartnerByValue(cliente.getCodCliente()) == null) {
-				MBPartner bp = new MBPartner(getCtx(), 0, get_TrxName());
+				MBPartner bp = new MBPartner(Env.getCtx(), 0, get_TrxName());
 				bp.setAD_Org_ID(m_AD_Org_ID);
 				bp.setValue(cliente.getCifCliente().replaceAll("\\.", "").substring(0, cliente.getCifCliente().replaceAll("\\.", "").indexOf("-")));
 //				bp.setValue(cliente.getCodCliente());
@@ -1063,7 +1064,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						.append(" FROM C_OrderLine ol, C_Order o")
 						.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
 						.append(" AND o.DocStatus = 'CO'")
-						.append(" AND o.C_DocType_ID = 1000047")
+						.append(" AND o.C_DocType_ID IN (1000047,1000574)")
 						.append(" AND ol.M_Product_ID = ").append(product.getM_Product_ID())
 						.append(" AND ol.QtyDelivered = 0")
 						//.append(" AND ol.QtyEntered > ").append(lin.getCanLinPed())
@@ -1073,6 +1074,12 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								+ " AND pl.M_Product_ID = " + product.getM_Product_ID()
 								+ " AND pl.C_OrderLine_ID = ol.C_OrderLine_ID"
 								+ " AND p.DocStatus IN ('CO','CL')),0)")
+						.append(" AND (ol.QtyEntered - coalesce((SELECT sum(pl.Qty)" + 
+								" FROM OV_Prereserva p, OV_PrereservaLine pl" + 
+								" WHERE p.OV_Prereserva_ID = pl.OV_Prereserva_ID" + 
+								" AND pl.M_Product_ID = " + product.getM_Product_ID() +
+								" AND pl.C_OrderLine_ID = ol.C_OrderLine_ID" + 
+								" AND p.DocStatus IN ('CO','CL')),0))>=10")
 						.append(" AND rownum <= 1");
 						if (orderID != -1)
 							sql.append("AND ol.C_Order_ID = ").append(orderID);
@@ -1145,7 +1152,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 				.append(" FROM C_OrderLine ol, C_Order o")
 				.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
 				.append(" AND o.DocStatus = 'CO'")
-				.append(" AND o.C_DocType_ID = 1000047")
+				.append(" AND o.C_DocType_ID IN (1000047,1000574)")
 				.append(" AND ol.M_Product_ID = ").append(idProduct)
 				.append(" AND ol.QtyDelivered = 0")
 				.append(" ORDER BY o.DatePromised");
@@ -1164,7 +1171,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 				.append(" FROM C_OrderLine ol, C_Order o")
 				.append(" WHERE ol.C_Order_ID = o.C_Order_ID")
 				.append(" AND o.DocStatus = 'CO'")
-				.append(" AND o.C_DocType_ID = 1000047")
+				.append(" AND o.C_DocType_ID IN (1000047,1000574)")
 				.append(" AND ol.M_Product_ID = ").append(idProduct)
 				.append(" AND ol.QtyDelivered = 0")
 				.append(" AND o.C_Order_ID != ").append(idOC)

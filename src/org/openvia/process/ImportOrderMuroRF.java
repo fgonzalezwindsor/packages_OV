@@ -767,6 +767,7 @@ public class ImportOrderMuroRF extends SvrProcess
 					int contador = 1;
 					int contadordoc=0;
 					boolean completar = true;
+					int documentNo = 1;
 					
 					// Se guardan unidades y productos Muro
 					String sqlNumProductos = "SELECT COUNT(DISTINCT(M_Product_ID)) FROM C_OrderB2CLine WHERE C_OrderB2C_ID="+ob2c.getC_OrderB2C_ID();
@@ -827,7 +828,10 @@ public class ImportOrderMuroRF extends SvrProcess
 														order.set_CustomColumn("FormaCompra", ob2c.get_Value("FormaCompra"));
 														order.set_CustomColumn("MedioCompra", "Internet");
 														order.set_CustomColumn("VentaInvierno", "N");
-														order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro")); 
+														if (documentNo > 1)
+															order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro")+"-"+documentNo );
+														else
+															order.setDocumentNo( ob2c.get_ValueAsString ("DocumentoMuro"));
 														order.set_CustomColumn("C_ORDERMURO_id", ob2c.get_ValueAsInt("C_OrderMuro_ID"));
 														order.set_CustomColumn("NOMBRESHOPIFY", ob2c.get_Value("NOMBRESHOPIFY"));
 														order.set_CustomColumn("DIRECCIONSHOPIFY", ob2c.get_Value("DIRECCIONSHOPIFY"));
@@ -887,6 +891,7 @@ public class ImportOrderMuroRF extends SvrProcess
 														}
 														contador=1;
 														order=null;
+														documentNo++;
 													}
 												} //while
 												order.set_CustomColumn("FIRMA2", "Y");
@@ -912,6 +917,7 @@ public class ImportOrderMuroRF extends SvrProcess
 												contador=1;
 												docok++;
 												order=null;
+												documentNo++;
 											
 												sql = new StringBuffer ("UPDATE I_OrderB2C "
 													  + "SET I_IsImported='Y' , processed='Y' "

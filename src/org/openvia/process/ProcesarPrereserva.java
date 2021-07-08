@@ -44,10 +44,14 @@ public class ProcesarPrereserva extends SvrProcess {
 		//MInOut inout = new MInOut(Env.getCtx(), inOut_ID, get_TrxName());
 //		int[] listaPrereservas = MPrereserva.getAllIDs("OV_Prereserva", "C_Order_ID="+order_ID, get_TrxName());
 		try {
-		StringBuffer sqlDoctosPreventa = new StringBuffer("SELECT Count(*) FROM OV_Documentos_preventa WHERE C_Order_origen_ID = " + order_ID);
-		int doctosPreventa = DB.getSQLValue(get_TrxName(), sqlDoctosPreventa.toString());
-		if (doctosPreventa == 0) {
-			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' Order By t.ov_orden ASC", get_TrxName());
+//		StringBuffer sqlDoctosPreventa = new StringBuffer("SELECT Count(*) FROM OV_Documentos_preventa WHERE C_Order_origen_ID = " + order_ID);
+//		int doctosPreventa = DB.getSQLValue(get_TrxName(), sqlDoctosPreventa.toString());
+		
+		StringBuffer sqlPrevNoProcesados = new StringBuffer("SELECT Count(*) FROM OV_Prereserva p WHERE p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' AND p.ov_prereserva_id NOT IN (SELECT ov_prereserva_id FROM OV_Documentos_preventa WHERE ov_prereserva_id = p.ov_prereserva_id)");
+		int prevNoProcesados = DB.getSQLValue(get_TrxName(), sqlPrevNoProcesados.toString());
+		if (prevNoProcesados > 0) {
+			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' AND p.ov_prereserva_id NOT IN (SELECT ov_prereserva_id FROM OV_Documentos_preventa WHERE ov_prereserva_id = p.ov_prereserva_id) Order By t.ov_orden ASC", get_TrxName());
+//			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' Order By t.ov_orden ASC", get_TrxName());
 			ResultSet res = pstPre.executeQuery();
 			Map<String, String> mapError = new HashMap<String, String>();
 			while (res.next()) {
@@ -80,46 +84,52 @@ public class ProcesarPrereserva extends SvrProcess {
 							order.saveEx();
 							List<String> listErrorLinea = new ArrayList<String>();
 							for (MPrereservaLine prereservaLine : prereserva.getLines()) {
-								MOrderLine orderLine = new MOrderLine(order);
-								BigDecimal disponible = null;
-								String sql = "SELECT qtyavailableofb(p.m_product_ID,1000010) + qtyavailableofb(p.m_product_ID,1000001) as disponible "
-										+ "FROM M_product p " 
-										+ "WHERE p.m_product_ID = "	+ prereservaLine.getM_Product_ID();
-								PreparedStatement pstmtps = DB.prepareStatement(sql, get_TrxName());
-								ResultSet rsps = pstmtps.executeQuery();
-								if (rsps.next()) {
-									disponible = rsps.getBigDecimal("disponible");
-								}
-								rsps.close();
-								pstmtps.close();
-								
-								if (disponible.compareTo(prereservaLine.getQty()) >= 0) {
-									orderLine.setQtyEntered(prereservaLine.getQty());
-									orderLine.setQtyOrdered(prereservaLine.getQty());
-								} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(prereservaLine.getQty()) == -1) {
-									orderLine.setQtyEntered(disponible);
-									orderLine.setQtyOrdered(disponible);
-									orderLine.set_CustomColumn("DEMAND", prereservaLine.getQty());
-								} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
-									orderLine.setQtyEntered(new BigDecimal(0));
-									orderLine.setQtyOrdered(new BigDecimal(0));
-									orderLine.set_CustomColumn("DEMAND", prereservaLine.getQty());
-									orderLine.set_CustomColumn("NOTPRINT", "Y");
-								}
-								orderLine.setM_Product_ID(prereservaLine.getM_Product_ID());
-								orderLine.setPriceEntered(new BigDecimal(prereservaLine.get_Value("PriceEntered").toString()));
-								orderLine.setPriceActual(new BigDecimal(prereservaLine.get_Value("PriceEntered").toString()));
-								orderLine.setPriceList(new BigDecimal(prereservaLine.get_Value("PriceList").toString()));
-								orderLine.set_CustomColumn("discount2", prereservaLine.get_Value("discount2"));
-								orderLine.set_CustomColumn("discount3", prereservaLine.get_Value("discount3"));
-								orderLine.set_CustomColumn("discount4", prereservaLine.get_Value("discount4"));
-								orderLine.set_CustomColumn("discount5", prereservaLine.get_Value("discount5"));
-								orderLine.setLineNetAmt();
-								if (!orderLine.save()) {
-									// Generar Aviso
-									MProduct prod = new MProduct(getCtx(), orderLine.getM_Product_ID(), get_TrxName());
-									listErrorLinea.add("\n");
-									listErrorLinea.add("Linea de documento: " + orderLine.getLine() + " - Producto: " + prod.getValue() + " - Cant.:" + orderLine.getQtyEntered() + " - Disponible: " + disponible);
+								if (prereservaLine.getC_OrderLine_ID() != 0) {
+									MOrderLine orderLine = new MOrderLine(order);
+									BigDecimal disponible = null;
+									String sql = "SELECT qtyavailableofb(p.m_product_ID,1000010) + qtyavailableofb(p.m_product_ID,1000001) as disponible "
+											+ "FROM M_product p " 
+											+ "WHERE p.m_product_ID = "	+ prereservaLine.getM_Product_ID();
+									PreparedStatement pstmtps = DB.prepareStatement(sql, get_TrxName());
+									ResultSet rsps = pstmtps.executeQuery();
+									if (rsps.next()) {
+										disponible = rsps.getBigDecimal("disponible");
+									}
+									rsps.close();
+									pstmtps.close();
+									
+									// Guardar disponible en linea de preventa
+									prereservaLine.set_CustomColumn("DISPONIBLE", disponible);
+									prereservaLine.save();
+									
+									if (disponible.compareTo(prereservaLine.getQty()) >= 0) {
+										orderLine.setQtyEntered(prereservaLine.getQty());
+										orderLine.setQtyOrdered(prereservaLine.getQty());
+									} else if (disponible.compareTo(BigDecimal.ZERO) == 1 && disponible.compareTo(prereservaLine.getQty()) == -1) {
+										orderLine.setQtyEntered(disponible);
+										orderLine.setQtyOrdered(disponible);
+										orderLine.set_CustomColumn("DEMAND", prereservaLine.getQty());
+									} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
+										orderLine.setQtyEntered(new BigDecimal(0));
+										orderLine.setQtyOrdered(new BigDecimal(0));
+										orderLine.set_CustomColumn("DEMAND", prereservaLine.getQty());
+										orderLine.set_CustomColumn("NOTPRINT", "Y");
+									}
+									orderLine.setM_Product_ID(prereservaLine.getM_Product_ID());
+									orderLine.setPriceEntered(new BigDecimal(prereservaLine.get_Value("PriceEntered").toString()));
+									orderLine.setPriceActual(new BigDecimal(prereservaLine.get_Value("PriceEntered").toString()));
+									orderLine.setPriceList(new BigDecimal(prereservaLine.get_Value("PriceList").toString()));
+									orderLine.set_CustomColumn("discount2", prereservaLine.get_Value("discount2"));
+									orderLine.set_CustomColumn("discount3", prereservaLine.get_Value("discount3"));
+									orderLine.set_CustomColumn("discount4", prereservaLine.get_Value("discount4"));
+									orderLine.set_CustomColumn("discount5", prereservaLine.get_Value("discount5"));
+									orderLine.setLineNetAmt();
+									if (!orderLine.save()) {
+										// Generar Aviso
+										MProduct prod = new MProduct(getCtx(), orderLine.getM_Product_ID(), get_TrxName());
+										listErrorLinea.add("\n");
+										listErrorLinea.add("Linea de documento: " + orderLine.getLine() + " - Producto: " + prod.getValue() + " - Cant.:" + orderLine.getQtyEntered() + " - Disponible: " + disponible);
+									}
 								}
 							}
 							if (listErrorLinea.size() > 0) {
@@ -209,6 +219,11 @@ public class ProcesarPrereserva extends SvrProcess {
 											if (rsps.next()) {
 												disponible = rsps.getBigDecimal("disponible");
 											}
+											
+											// Guardar disponible en linea de preventa
+											preLine.set_CustomColumn("DISPONIBLE", disponible);
+											preLine.save();
+											
 											listErrorLinea.add("\n");
 											MProduct prod = new MProduct(getCtx(), preLine.getM_Product_ID(), get_TrxName());
 											listErrorLinea.add("Linea de documento: " + i + " - Producto: " + prod.getValue() + " - Cant.:" + preLine.getQty() + " - Disponible: " + disponible);
@@ -239,6 +254,11 @@ public class ProcesarPrereserva extends SvrProcess {
 											if (rsps.next()) {
 												disponible = rsps.getBigDecimal("disponible");
 											}
+											
+											// Guardar disponible en linea de preventa
+											preLine.set_CustomColumn("DISPONIBLE", disponible);
+											preLine.save();
+											
 											listErrorLinea.add("\n");
 											MProduct prod = new MProduct(getCtx(), preLine.getM_Product_ID(), get_TrxName());
 											listErrorLinea.add("Linea de documento: " + i + " - Producto: " + prod.getValue() + " - Cant.:" + newQty + " - Disponible: " + disponible);
@@ -297,35 +317,21 @@ public class ProcesarPrereserva extends SvrProcess {
 						else if (prereserva.getC_DocType_ID() == 1000573) {
 							MRequisition req = new MRequisition(getCtx(), prereserva.getM_MRequisition_ID(), get_TrxName());
 							for (MPrereservaLine preLine : prereserva.getLines()) {
-								boolean existeProducto = false;
-								for (MRequisitionLine reqLine : req.getLines()) {
-									if (preLine.getM_Product_ID() == reqLine.getM_Product_ID()) {
-										StringBuffer sql = new StringBuffer("UPDATE M_RequisitionLine"
-												+ " SET QtyReserved = " + new BigDecimal(reqLine.get_Value("QtyReserved").toString()).add(preLine.getQty()) + ","
-												+ " 	Qty = " + reqLine.getQty().add(preLine.getQty())
-												+ " WHERE M_RequisitionLine_ID = " + reqLine.getM_RequisitionLine_ID());
-										/*reqLine.setQty(reqLine.getQty().add(preLine.getQty()));
-										reqLine.set_CustomColumn("QtyReserved", new BigDecimal(reqLine.get_Value("QtyReserved").toString()).add(preLine.getQty()));
-										reqLine.saveEx();*/
-										DB.executeUpdate(sql.toString(), get_TrxName());
-										commitEx();
-										existeProducto = true;
-										break;
-									}
-								}
-								if (!existeProducto) {
+								int M_RequisitionLine_ID = DB.getSQLValue(get_TrxName(), "SELECT MAX(M_RequisitionLine_ID) FROM M_RequisitionLine WHERE liberada = 'N' AND M_Requisition_ID = "+ req.getM_Requisition_ID() +" AND M_Product_ID = " + preLine.getM_Product_ID());
+								if (M_RequisitionLine_ID > 0) {
+									StringBuffer sql = new StringBuffer("UPDATE M_RequisitionLine"
+											+ " SET QtyReserved = QtyReserved + " + preLine.getQty() + ","
+											+ " 	Qty = Qty + " + preLine.getQty()
+											+ " WHERE M_RequisitionLine_ID = " + M_RequisitionLine_ID);
+									DB.executeUpdate(sql.toString(), get_TrxName());
+									commitEx();
+								} else {
 									int rl_id = Integer.parseInt(DB.getSQLValueString(null, "Select NEXTIDFUNC(920,'N') from c_charge where c_charge_ID=1000010"));
 			                        StringBuffer sql = new StringBuffer ("Insert "
 			                        		+ "into m_requisitionline (m_requisition_ID,m_requisitionline_id,line,m_product_ID,qty,qtyreserved,ad_Client_ID,ad_org_ID,created,createdby,isactive,updated,updatedby,QTYUSED,C_UOM_ID)"
 			                        		+ " values("+req.getM_Requisition_ID()+","+rl_id+",10,"+preLine.getM_Product_ID()+","+preLine.getQty()+","+preLine.getQty()+",1000000,1000000,sysdate,100,'Y', sysdate, 100,0,"+preLine.getC_UOM_ID()+")");
 			                        DB.executeUpdate(sql.toString(), get_TrxName());
 			                        commitEx();
-			                               
-									/*MRequisitionLine reqLine = new MRequisitionLine(req);
-									reqLine.setM_Product_ID(preLine.getM_Product_ID());
-									reqLine.setQty(preLine.getQty());
-									reqLine.set_CustomColumn("QtyReserved", preLine.getQty());
-									reqLine.saveEx();*/
 								}
 							}
 							// Guarda registro

@@ -5,10 +5,13 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.compiere.model.MClient;
 import org.compiere.process.SvrProcess;
+import org.compiere.util.EMail;
 
 public class ApiInacatalog extends SvrProcess {
 	// Insertar Clientes desde inacatalog
@@ -47,6 +50,9 @@ public class ApiInacatalog extends SvrProcess {
 
 	@Override
 	protected String doIt() throws Exception {
+		MClient M_Client = new MClient(getCtx(),get_TrxName());
+		String correoTo = "icastroruz@gmail.com";
+		
 		readInacatalog.insertarClientes();
 		
 		String semaforo = null;
@@ -59,6 +65,11 @@ public class ApiInacatalog extends SvrProcess {
 			semaforo = rs.getString("datValor");
 		}
 		
+		// Enviar correo de inicio de proceso.
+		EMail email = M_Client.createEMail(correoTo, "Comienza proceso ApiInaCatalog " + new Timestamp(System.currentTimeMillis()), "Comenzo el proceso... " + semaforo, true);
+		EMail.SENT_OK.equals(email.send());
+		
+		try {
 		if (semaforo.substring(0, semaforo.indexOf(":")).equals("Verde")) {
 			// Actualizamos a Rojo
 			pst = conn.prepareStatement("UPDATE Windsor_Semaforo SET datValor = 'Rojo:Windsor-" + format.format(new Date()) + "' WHERE codParametro = 'SemaforoInaCatalog'");
@@ -168,6 +179,13 @@ public class ApiInacatalog extends SvrProcess {
 			pst.close();
 			connInacatalog.closeConection(conn);
 		}
+		} catch (Exception e) {
+			email = M_Client.createEMail(correoTo, "Error al procesar InaCatalog " + new Timestamp(System.currentTimeMillis()), e.toString(), true);
+			EMail.SENT_OK.equals(email.send());
+		}
+		// Envia correo de proceso exitoso
+		email = M_Client.createEMail(correoTo, "Se proceso ApiInaCatalog" + new Timestamp(System.currentTimeMillis()), semaforo, true);
+		EMail.SENT_OK.equals(email.send());		
 		
 		return "Inacatalog Importados";
 	}
