@@ -300,6 +300,7 @@ public class MPrereservaLine extends X_OV_PrereservaLine
 		if (getPriceActual().signum() == 0)
 			setPrice();
 		setLineNetAmt();
+		
 		return true;
 	}	//	beforeSave
 	

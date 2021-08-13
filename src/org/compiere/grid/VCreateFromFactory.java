@@ -26,6 +26,7 @@ import org.compiere.model.I_C_PaymentRequest;
 import org.compiere.model.I_M_InOut;
 import org.compiere.model.I_M_Inventory;
 import org.compiere.model.I_M_RMA;
+import org.compiere.model.I_OV_CierreComex;
 import org.compiere.model.I_OV_Prereserva;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
@@ -67,7 +68,8 @@ public class VCreateFromFactory
 		s_registeredClasses.put(I_C_PaymentList.Table_ID, VCreateFromPaymentListUI.class);
 		s_registeredClasses.put(I_M_Inventory.Table_ID, VCreateFromInternalUseUI.class);
 
-		s_registeredClasses.put(I_OV_Prereserva.Table_ID, VCreateFromOrderImportUI.class);		
+		s_registeredClasses.put(I_OV_Prereserva.Table_ID, VCreateFromOrderImportUI.class);
+		s_registeredClasses.put(I_OV_CierreComex.Table_ID, VCreateFromOrderComexUI.class);
 	}
 	
 	/**
@@ -102,4 +104,32 @@ public class VCreateFromFactory
 		}
 		return retValue;
 	}   //  create
+	
+	public static ICreateFrom createComex (GridTab mTab)
+	{
+		//	dynamic init preparation
+		int AD_Table_ID = I_OV_CierreComex.Table_ID;
+
+		ICreateFrom retValue = null;
+		Class<? extends ICreateFrom> cl = s_registeredClasses.get(AD_Table_ID);
+		if (cl != null)
+		{
+			try
+			{
+				java.lang.reflect.Constructor<? extends ICreateFrom> ctor = cl.getConstructor(GridTab.class);
+				retValue = ctor.newInstance(mTab);
+			}
+			catch (Throwable e)
+			{
+				s_log.log(Level.SEVERE, e.getLocalizedMessage(), e);
+				return null;
+			}
+		}
+		if (retValue == null)
+		{
+			s_log.info("Unsupported AD_Table_ID=" + AD_Table_ID);
+			return null;
+		}
+		return retValue;
+	}   //  createComex
 }

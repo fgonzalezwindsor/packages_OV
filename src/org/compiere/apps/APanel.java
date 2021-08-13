@@ -2611,6 +2611,27 @@ public final class APanel extends CPanel
 			}
 			return;
 		}   //  Posted
+		else if (col.equals("CreateFromComex"))
+		{
+			// Run form only if the button has no process defined - teo_sarca [ 1974354 ]
+			if (vButton.getProcess_ID() <= 0)
+			{
+				ICreateFrom cf = VCreateFromFactory.createComex(m_curTab);
+				if(cf != null)
+				{
+					if(cf.isInitOK())
+					{
+						cf.showWindow();
+						cf.closeWindow();
+						m_curTab.dataRefresh();
+					}
+					else
+						cf.closeWindow();
+					return;
+				}
+				//	else may start process
+			}
+		}
 
 		/**
 		 *  Start Process ----

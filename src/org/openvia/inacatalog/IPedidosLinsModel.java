@@ -54,6 +54,7 @@ public class IPedidosLinsModel implements Serializable {
 	private String codModeloTyC;
 	private Double Puntos;
 	private Integer orderLineID;
+	private Double demand;
 	
 	public Integer getCodEmpresa() {
 		return codEmpresa;
@@ -354,6 +355,12 @@ public class IPedidosLinsModel implements Serializable {
 	}
 	public void setOrderLineID(Integer orderLineID) {
 		this.orderLineID = orderLineID;
+	}
+	public Double getDemand() {
+		return demand;
+	}
+	public void setDemand(Double demand) {
+		this.demand = demand;
 	}
 	
 }

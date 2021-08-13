@@ -1832,26 +1832,31 @@ public class MInOut extends X_M_InOut implements DocAction
 				cuerpoMensaje.append(cliente + "<br />");
 			}
 			cuerpoMensaje.append(", se recomienda procesar dicha OC a la brevedad posible.");
+			
 			MClient M_Client = new MClient(getCtx(),get_TrxName());
-			EMail email = M_Client.createEMail("crodriguez@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
+			EMail email = M_Client.createEMail("venta@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
+			email.addCc("crodriguez@comercialwindsor.cl");
+			email.addCc("agalemiri@comercialwindsor.cl");
+			email.addCc("aparra@comercialwindsor.cl");			
+			
+			/*EMail email = M_Client.createEMail("crodriguez@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
 			EMail.SENT_OK.equals(email.send());
 			
 			EMail email2 = M_Client.createEMail("agalemiri@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
 			EMail.SENT_OK.equals(email2.send());
 			
 			EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
-			EMail.SENT_OK.equals(email3.send());
+			EMail.SENT_OK.equals(email3.send());*/
 			
 			Set<String> hashSet = new HashSet<String>(correosAviso);
 			correosAviso.clear();
 			correosAviso.addAll(hashSet);
 			for (String correo : correosAviso) {
-				EMail email4 = M_Client.createEMail(correo,"Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
-				EMail.SENT_OK.equals(email4.send());
+				email.addCc(correo);
+				/*EMail email4 = M_Client.createEMail(correo,"Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
+				EMail.SENT_OK.equals(email4.send());*/
 			}
-			
-			EMail email5 = M_Client.createEMail("venta@comercialwindsor.cl","Recepción de OC Internacional con preventa de transito " + new Timestamp(System.currentTimeMillis()), cuerpoMensaje.toString(), true);
-			EMail.SENT_OK.equals(email5.send());
+			EMail.SENT_OK.equals(email.send());
 		}
 		
 		m_processMsg = info.toString();

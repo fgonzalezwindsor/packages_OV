@@ -19,16 +19,9 @@ package org.compiere.model;
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.process.DocAction;
@@ -38,12 +31,12 @@ import org.compiere.util.Env;
 import org.compiere.util.Msg;
 
 /**
- *	Llegada Model
+ *	CierreComex Model
  *	
  *  @author Isaac Castro
  *
  */
-public class MLlegada extends X_OV_Llegada implements DocAction
+public class MCierreComex extends X_OV_CierreComex implements DocAction
 {
 	/**
 	 * 
@@ -53,63 +46,61 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	/**
 	 * 	Standard Constructor
 	 *	@param ctx context
-	 *	@param OV_Llegada_ID id
+	 *	@param OV_CierreComex_ID id
 	 */
-	public MLlegada (Properties ctx, int OV_Llegada_ID, String trxName)
+	public MCierreComex (Properties ctx, int OV_CierreComex_ID, String trxName)
 	{
-		super (ctx, OV_Llegada_ID, trxName);
-		if (OV_Llegada_ID == 0)
+		super (ctx, OV_CierreComex_ID, trxName);
+		if (OV_CierreComex_ID == 0)
 		{
 		//	setDocumentNo (null);
 		//	setAD_User_ID (0);
-//			setM_PriceList_ID (0);
+		//	setM_PriceList_ID (0);
 		//	setM_Warehouse_ID(0);
 			setDateDoc(new Timestamp(System.currentTimeMillis()));
-			setFecha_Llegada(new Timestamp(System.currentTimeMillis()));
 			setDocAction (DocAction.ACTION_Complete);	// CO
 			setDocStatus (DocAction.STATUS_Drafted);		// DR
 			setIsApproved (false);
-			setPosted (false);
 			setProcessed (false);
 		}
-	}	//	OVLlegada
+	}	
 
 	/**
 	 * 	Load Constructor
 	 *	@param ctx context
 	 *	@param rs result set
 	 */
-	public MLlegada (Properties ctx, ResultSet rs, String trxName)
+	public MCierreComex (Properties ctx, ResultSet rs, String trxName)
 	{
 		super(ctx, rs, trxName);
-	}	//	MLlegada
+	}	//	MCierreComex
 	
 	/** Lines						*/
-	private MLlegadaLine[]		m_lines = null;
+	private MCierreComexLine[]		m_lines = null;
 	
-	private MLlegada[]	m_llegadas = null;
+	private MCierreComex[]	m_CierreComex = null;
 	
 	/**
 	 * 	Get Lines
 	 *	@return array of lines
 	 */
-	public MLlegadaLine[] getLines()
+	public MCierreComexLine[] getLines()
 	{
 		if (m_lines != null) {
 			set_TrxName(m_lines, get_TrxName());
 			return m_lines;
 		}
 		
-		//red1 - FR: [ 2214883 ] Remove SQL code and Replace for Query  
- 	 	final String whereClause = I_OV_LlegadaLine.COLUMNNAME_OV_Llegada_ID+"=?";
-	 	List <MLlegadaLine> list = new Query(getCtx(), I_OV_LlegadaLine.Table_Name, whereClause, get_TrxName())
-			.setParameters(get_ID())
-			.setOrderBy(I_OV_LlegadaLine.COLUMNNAME_Line)
-			.list();
-	 	//  red1 - end -
-
-		m_lines = new MLlegadaLine[list.size ()];
-		list.toArray (m_lines);
+//		//red1 - FR: [ 2214883 ] Remove SQL code and Replace for Query  
+// 	 	final String whereClause = I_OV_CierreComexLine.COLUMNNAME_OV_CierreComex_ID+"=?";
+//	 	List <MCierreComexLine> list = new Query(getCtx(), I_OV_CierreComexLine.Table_Name, whereClause, get_TrxName())
+//			.setParameters(get_ID())
+//			.setOrderBy(I_OV_CierreComexLine.COLUMNNAME_Line)
+//			.list();
+//	 	//  red1 - end -
+//
+//		m_lines = new MCierreComexLine[list.size ()];
+//		list.toArray (m_lines);
 		return m_lines;
 	}	//	getLines
 	
@@ -119,7 +110,7 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	 */
 	public String toString ()
 	{
-		StringBuffer sb = new StringBuffer ("OVLlegada[");
+		StringBuffer sb = new StringBuffer ("OVCierreComex[");
 		sb.append(get_ID()).append("-").append(getDocumentNo())
 			.append(",Status=").append(getDocStatus()).append(",Action=").append(getDocAction())
 			.append ("]");
@@ -132,7 +123,7 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	 */
 	public String getDocumentInfo()
 	{
-		return Msg.getElement(getCtx(), "OV_Llegada_ID") + " " + getDocumentNo();
+		return Msg.getElement(getCtx(), "OV_CierreComex_ID") + " " + getDocumentNo();
 	}	//	getDocumentInfo
 	
 	/**
@@ -167,158 +158,36 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	}	//	createPDF
 
 	/**
+	 * 	Set default PriceList
+	 */
+	public void setM_PriceList_ID()
+	{
+		MPriceList defaultPL = MPriceList.getDefault(getCtx(), false);
+		if (defaultPL == null)
+			defaultPL = MPriceList.getDefault(getCtx(), true);
+		if (defaultPL != null)
+			setM_PriceList_ID(defaultPL.getM_PriceList_ID());
+	}	//	setM_PriceList_ID()
+	
+	/**
 	 * 	Before Save
 	 *	@param newRecord new
 	 *	@return true
 	 */
 	protected boolean beforeSave (boolean newRecord)
 	{
-		// Set DocumentNo
-		MOrder order = new MOrder(getCtx(), getC_Order_ID(), null);
-		if (order.get_Value("OV_OCMCERRADA").equals("Y")) {
-			m_processMsg = "Orden de Compra Madre Cerrada";
-			return false;
+		if (getC_DocType_ID() == 1000572 && // 1000572: PreVenta - Reserva Física
+				(getC_BPartner_ID() == 1001292 || getC_BPartner_ID() == 1001237)) { // 1001292: COMERCIAL WINDSOR LTDA. || 1001237: INVERSIONES MURO LTDA. 
+			throw new AdempiereException("No puede crear Preventa - Reserva Fisica para cliente COMERCIAL WINDSOR LTDA. o INVERSIONES MURO LTDA. (Seleccione Tipo de Documento PreVenta - MultiRut)");
 		}
-		if (newRecord) {
-			String sql = "SELECT COALESCE(COUNT(*),0)+1 FROM OV_Llegada WHERE C_Order_ID=?";
-			int ii = DB.getSQLValueEx (get_TrxName(), sql, getC_Order_ID());
-			setDocumentNo(order.getDocumentNo() + " - " + ii);
-		}
-
-		// Calculo de fecha llegada (3 dias habiles)
-		Timestamp fechaETA = (Timestamp)get_Value("DATEETA");
-		Calendar cal = Calendar.getInstance();
-		cal.setTimeInMillis(fechaETA.getTime());
-		for (int i=1; i <= 3; i++) {
-			cal.add(Calendar.DAY_OF_YEAR, 1);
-			if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
-				cal.add(Calendar.DAY_OF_YEAR, 2);
-			} else if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-				cal.add(Calendar.DAY_OF_YEAR, 1);
-			}
-		}
-		if ((Timestamp)get_ValueOld("DATEETA") != (Timestamp)get_Value("DATEETA")) {
-			set_CustomColumn("FECHA_LLEGADA", new Timestamp(cal.getTimeInMillis()));
-		}
-		// Calculo fecha recepcion (5 dias habiles)
-		Timestamp fechaLlegada = (Timestamp)get_Value("FECHA_LLEGADA");
-		Calendar cal2 = Calendar.getInstance();
-		cal2.setTimeInMillis(fechaLlegada.getTime());
-		for (int i=1; i <= 5; i++) {
-			cal2.add(Calendar.DAY_OF_YEAR, 1);
-			if (cal2.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
-				cal2.add(Calendar.DAY_OF_YEAR, 2);
-			} else if (cal2.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-				cal2.add(Calendar.DAY_OF_YEAR, 1);
-			}
-		}
-		if ((Timestamp)get_ValueOld("FECHA_LLEGADA") != (Timestamp)get_Value("FECHA_LLEGADA")) {
-			set_CustomColumn("FECHA_RECEPCION", new Timestamp(cal2.getTimeInMillis()));
-		}
-		String sql = "SELECT DATEETA, DATEETD, FECHA_RECEPCION, FECHA_LLEGADA, OV_ESTADO_ETD, OV_ESTADO_ETA, OV_ESTADO_LLEGADA, OV_ESTADO_RECEPCION"
-				+ " FROM OV_Llegada"
-				+ " WHERE C_Order_ID=" + getC_Order_ID() + ""
-				+ " ORDER BY FECHA_LLEGADA DESC";
-		
-		Statement stm = DB.createStatement();
-		ResultSet res = null;
-		try {
-			res = stm.executeQuery(sql);
-			if (res.next()) {
-				if (res.getTimestamp("FECHA_LLEGADA").after((Timestamp)get_Value("FECHA_LLEGADA"))) {
-					order.set_CustomColumn("DATEETA", res.getTimestamp("DATEETA"));
-					order.set_CustomColumn("DATEETD", res.getTimestamp("DATEETD"));
-					order.set_CustomColumn("FECHA_RECEPCION", res.getTimestamp("FECHA_RECEPCION"));
-					order.set_CustomColumn("FECHA_LLEGADA", res.getTimestamp("FECHA_LLEGADA"));
-					order.set_CustomColumn("OV_ESTADO_ETD", res.getString("OV_ESTADO_ETD"));
-					order.set_CustomColumn("OV_ESTADO_ETA", res.getString("OV_ESTADO_ETA"));
-					order.set_CustomColumn("OV_ESTADO_LLEGADA", res.getString("OV_ESTADO_LLEGADA"));
-					order.set_CustomColumn("OV_ESTADO_RECEPCION", res.getString("OV_ESTADO_RECEPCION"));
-					order.set_CustomColumn("OV_DIASTRANSITO", TimeUnit.DAYS.convert(res.getTimestamp("DATEETA").getTime() - res.getTimestamp("DATEETD").getTime(), TimeUnit.MILLISECONDS));
-					if (!order.save()) {
-						m_processMsg = "Error al guardar fechas en OC";
-						return false;
-					}
-				} else {
-					order.set_CustomColumn("DATEETA", (Timestamp)get_Value("DATEETA"));
-					order.set_CustomColumn("DATEETD", (Timestamp)get_Value("DATEETD"));
-					order.set_CustomColumn("FECHA_RECEPCION", (Timestamp)get_Value("FECHA_RECEPCION"));
-					order.set_CustomColumn("FECHA_LLEGADA", (Timestamp)get_Value("FECHA_LLEGADA"));
-					order.set_CustomColumn("OV_ESTADO_ETD", (String)get_Value("OV_ESTADO_ETD"));
-					order.set_CustomColumn("OV_ESTADO_ETA", (String)get_Value("OV_ESTADO_ETA"));
-					order.set_CustomColumn("OV_ESTADO_LLEGADA", (String)get_Value("OV_ESTADO_LLEGADA"));
-					order.set_CustomColumn("OV_ESTADO_RECEPCION", (String)get_Value("OV_ESTADO_RECEPCION"));
-					order.set_CustomColumn("OV_DIASTRANSITO", TimeUnit.DAYS.convert(res.getTimestamp("DATEETA").getTime() - res.getTimestamp("DATEETD").getTime(), TimeUnit.MILLISECONDS));
-					if (!order.save()) {
-						m_processMsg = "Error al guardar fechas en OC";
-						return false;
-					}
-				}
-			} else {
-				order.set_CustomColumn("DATEETA", (Timestamp)get_Value("DATEETA"));
-				order.set_CustomColumn("DATEETD", (Timestamp)get_Value("DATEETD"));
-				order.set_CustomColumn("FECHA_RECEPCION", (Timestamp)get_Value("FECHA_RECEPCION"));
-				order.set_CustomColumn("FECHA_LLEGADA", (Timestamp)get_Value("FECHA_LLEGADA"));
-				order.set_CustomColumn("OV_ESTADO_ETD", (String)get_Value("OV_ESTADO_ETD"));
-				order.set_CustomColumn("OV_ESTADO_ETA", (String)get_Value("OV_ESTADO_ETA"));
-				order.set_CustomColumn("OV_ESTADO_LLEGADA", (String)get_Value("OV_ESTADO_LLEGADA"));
-				order.set_CustomColumn("OV_ESTADO_RECEPCION", (String)get_Value("OV_ESTADO_RECEPCION"));
-				order.set_CustomColumn("OV_DIASTRANSITO", TimeUnit.DAYS.convert(res.getTimestamp("DATEETA").getTime() - res.getTimestamp("DATEETD").getTime(), TimeUnit.MILLISECONDS));
-				if (!order.save()) {
-					m_processMsg = "Error al guardar fechas en OC";
-					return false;
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		
+		if (getM_PriceList_ID() == 0)
+			setM_PriceList_ID();
 		return true;
 	}	//	beforeSave
 	
-	/**
-	 * 	After Save
-	 *	@param newRecord new
-	 *	@param success success
-	 *	@return success
-	 */
-	protected boolean afterSave (boolean newRecord, boolean success)
-	{
-		MOrder order = new MOrder(getCtx(), getC_Order_ID(), null);
-		if (newRecord) {
-			MOrderLine[] orderLines = order.getLines();
-			for (MOrderLine orderLine : orderLines) {
-				if (orderLine.getM_Product_ID() != 0) {
-					int ll_id = Integer.parseInt(DB.getSQLValueString(null, "Select NEXTIDFUNC(1004984,'N') from c_charge where c_charge_ID=1000010"));
-					String sqlSumQtyLlegadas = "SELECT SUM(ll.qty)"
-							+ " FROM OV_LlegadaLine ll, OV_Llegada l"
-							+ " WHERE ll.OV_Llegada_ID = l.OV_Llegada_ID"
-							+ " AND l.C_Order_ID = "+getC_Order_ID()
-							+ " AND ll.M_Product_ID = "+orderLine.getM_Product_ID()
-							+ " AND l.DocStatus = 'CO'";
-					BigDecimal qty = orderLine.getQtyEntered().subtract(new BigDecimal(DB.getSQLValue(get_TrxName(), sqlSumQtyLlegadas)));
-					String sql = "INSERT INTO OV_LlegadaLine (ov_llegadaline_id, ad_client_id, ad_org_id, createdby, updatedby, ov_llegada_id, m_product_id, c_orderline_id, qty, priceactual, c_uom_id, linenetamt, line) "
-							+ "VALUES ("+ll_id+", "+getAD_Client_ID()+", "+getAD_Org_ID()+", "+getCreatedBy()+", "+getCreatedBy()+", "+getOV_Llegada_ID()+", "+orderLine.getM_Product_ID()+", "+orderLine.getC_OrderLine_ID()+", "+qty+", "+orderLine.getPriceEntered()+", "+orderLine.getC_UOM_ID()+", 0, "+orderLine.getLine()+")";
-					DB.executeUpdate(sql, get_TrxName());
-//					MLlegadaLine llegadaLine = new MLlegadaLine(llegada);
-//					llegadaLine.setOV_Llegada_ID(getOV_Llegada_ID());
-//					llegadaLine.setAD_Org_ID(getAD_Org_ID());
-//					llegadaLine.setM_Product_ID(orderLine.getM_Product_ID());
-//					llegadaLine.setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
-//					llegadaLine.setQty(orderLine.getQtyEntered());
-//					llegadaLine.setPriceActual(orderLine.getPriceEntered());
-//					llegadaLine.setC_UOM_ID(orderLine.getC_UOM_ID());
-//					llegadaLine.setLineNetAmt(orderLine.getQtyEntered().multiply(orderLine.getPriceEntered()));
-//					llegadaLine.saveEx();
-				}
-			}
-		}
-		return true;
-	}	//	afterSave
-	
 	@Override
 	protected boolean beforeDelete() {
-		for (MLlegadaLine line : getLines()) {
+		for (MCierreComexLine line : getLines()) {
 			line.deleteEx(true);
 		}
 		return true;
@@ -372,7 +241,14 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 		m_processMsg = ModelValidationEngine.get().fireDocValidate(this, ModelValidator.TIMING_BEFORE_PREPARE);
 		if (m_processMsg != null)
 			return DocAction.STATUS_Invalid;
-		MLlegadaLine[] lines = getLines();
+		MCierreComexLine[] lines = getLines();
+		
+		//	Invalid
+		if (getAD_User_ID() == 0 
+			|| getM_PriceList_ID() == 0)
+		{
+			return DocAction.STATUS_Invalid;
+		}
 		
 		if(lines.length == 0)
 		{
@@ -383,11 +259,13 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 		MPeriod.testPeriodOpen(getCtx(), getDateDoc(), MDocType.DOCBASETYPE_PurchaseRequisition, getAD_Org_ID());
 		
 		//	Add up Amounts
+		int precision = MPriceList.getStandardPrecision(getCtx(), getM_PriceList_ID());
 		BigDecimal totalLines = Env.ZERO;
 		for (int i = 0; i < lines.length; i++)
 		{
-			MLlegadaLine line = lines[i];
-			BigDecimal lineNet = line.getQty().multiply(line.getPriceActual());
+			MCierreComexLine line = lines[i];
+			BigDecimal lineNet = line.getQtyDelivered().multiply(line.getPriceEntered());
+			lineNet = lineNet.setScale(precision, BigDecimal.ROUND_HALF_UP);
 			if (lineNet.compareTo(line.getLineNetAmt()) != 0)
 			{
 				line.setLineNetAmt(lineNet);
@@ -461,27 +339,6 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 			m_processMsg = valid;
 			return DocAction.STATUS_Invalid;
 		}
-		
-		// Valida que la suma de las llegadas completadas no sea mayor a la cantidad de OC
-		StringBuffer msg = new StringBuffer();
-		for (MLlegadaLine line : this.getLines()) {
-			String sqlSumQtyLlegadas = "SELECT SUM(ll.qty)"
-					+ " FROM OV_LlegadaLine ll, OV_Llegada l"
-					+ " WHERE ll.OV_Llegada_ID = l.OV_Llegada_ID"
-					+ " AND l.C_Order_ID = "+getC_Order_ID()
-					+ " AND ll.M_Product_ID = "+line.getM_Product_ID()
-					+ " AND l.DocStatus = 'CO'";
-			if ((new BigDecimal(DB.getSQLValueString(get_TrxName(), sqlSumQtyLlegadas)).add(line.getQty())).compareTo(line.getC_OrderLine().getQtyEntered()) > 0) {
-				if (msg.length() > 0)
-					msg.append("|" + line.getM_Product().getValue() + " suma de llegadas("+ sqlSumQtyLlegadas +") mayor a cant. de OC(" + line.getC_OrderLine().getQtyEntered() + ")");
-				else
-					msg.append(line.getM_Product().getValue() + " suma de llegadas(" + sqlSumQtyLlegadas + ") mayor a cant. de OC(" + line.getC_OrderLine().getQtyEntered() + ")");
-			}
-		}
-		if (msg.length() > 0) {
-			m_processMsg = msg.toString();
-			return DocAction.STATUS_Invalid;
-		}
 
 		// Set the definite document number after completed (if needed)
 		setDefiniteDocumentNo();
@@ -496,22 +353,12 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	 * 	Set the definite document number after completed
 	 */
 	private void setDefiniteDocumentNo() {
-		/*MDocType dt = MDocType.get(getCtx(), getC_DocType_ID());
+		MDocType dt = MDocType.get(getCtx(), getC_DocType_ID());
 		if (dt.isOverwriteDateOnComplete()) {
 			setDateDoc(new Timestamp (System.currentTimeMillis()));
 		}
 		if (dt.isOverwriteSeqOnComplete()) {
 			String value = DB.getDocumentNo(getC_DocType_ID(), get_TrxName(), true, this);
-			if (value != null)
-				setDocumentNo(value);
-		}*/
-		
-		MDocType dt = MDocType.get(getCtx(), 0);
-		if (dt.isOverwriteDateOnComplete()) {
-			setDateDoc(new Timestamp (System.currentTimeMillis()));
-		}
-		if (dt.isOverwriteSeqOnComplete()) {
-			String value = DB.getDocumentNo(0, get_TrxName(), true, this);
 			if (value != null)
 				setDocumentNo(value);
 		}
@@ -527,9 +374,9 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 		super.setProcessed (processed);
 		if (get_ID() == 0)
 			return;
-		String sql = "UPDATE OV_LlegadaLine SET Processed='"
+		String sql = "UPDATE OV_CierreComexLine SET Processed='"
 			+ (processed ? "Y" : "N")
-			+ "' WHERE OV_Llegada_ID=" + getOV_Llegada_ID();
+			+ "' WHERE OV_CierreComex_ID=" + getOV_CierreComex_ID();
 		int noLine = DB.executeUpdate(sql, get_TrxName());
 		m_lines = null;
 		log.fine(processed + " - Lines=" + noLine);
@@ -573,24 +420,24 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 			return false;
 		
 		//	Close Not delivered Qty
-		MLlegadaLine[] lines = getLines();
+		MCierreComexLine[] lines = getLines();
 		BigDecimal totalLines = Env.ZERO;
 		for (int i = 0; i < lines.length; i++)
 		{
-			MLlegadaLine line = lines[i];
-			BigDecimal finalQty = line.getQty();
+			MCierreComexLine line = lines[i];
+			BigDecimal finalQty = line.getQtyDelivered();
 			if (line.getC_OrderLine_ID() == 0)
 				finalQty = Env.ZERO;
 			//	final qty is not line qty
-			if (finalQty.compareTo(line.getQty()) != 0)
+			if (finalQty.compareTo(line.getQtyDelivered()) != 0)
 			{
 				String description = line.getDescription();
 				if (description == null)
 					description = "";
-				description += " [" + line.getQty() + "]"; 
+				description += " [" + line.getQtyDelivered() + "]"; 
 				line.setDescription(description);
-				line.setQty(finalQty);
-				line.setLineNetAmt();
+				line.setQtyDelivered(finalQty);
+				line.setLineNetAmt(line.getQtyDelivered().multiply(line.getPriceEntered()));
 				line.saveEx();
 			}
 			totalLines = totalLines.add (line.getLineNetAmt());
@@ -680,6 +527,8 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	{
 		StringBuffer sb = new StringBuffer();
 		sb.append(getDocumentNo());
+		//	 - User
+		sb.append(" - ").append(getUserName());
 		//	: Total Lines = 123.00 (#1)
 		sb.append(": ").
 			append(Msg.translate(getCtx(),"TotalLines")).append("=").append(getTotalLines())
@@ -700,6 +549,15 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	}	//	getProcessMsg
 	
 	/**
+	 * 	Get Document Owner
+	 *	@return AD_User_ID
+	 */
+	public int getDoc_User_ID()
+	{
+		return getAD_User_ID();
+	}
+	
+	/**
 	 * 	Get Document Currency
 	 *	@return C_Currency_ID
 	 */
@@ -707,7 +565,6 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	{
 		MPriceList pl = MPriceList.get(getCtx(), getM_PriceList_ID(), get_TrxName());
 		return pl.getC_Currency_ID();
-//		return 228;
 	}
 
 	/**
@@ -720,6 +577,15 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	}
 	
 	/**
+	 * 	Get User Name
+	 *	@return user name
+	 */
+	public String getUserName()
+	{
+		return MUser.get(getCtx(), getAD_User_ID()).getName();
+	}	//	getUserName
+
+	/**
 	 * 	Document Status is Complete or Closed
 	 *	@return true if CO, CL or RE
 	 */
@@ -731,13 +597,13 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 			|| DOCSTATUS_Reversed.equals(ds);
 	}	//	isComplete
 	
-	public MLlegada[] getLlegadasByOrder(int C_Order_ID) {
-		List<MLlegada> list = new Query(getCtx(), I_OV_Llegada.Table_Name, "C_Order_ID=?", get_TrxName())
+	public MCierreComex[] getCierreComexsByOrder(int C_Order_ID) {
+		List<MCierreComex> list = new Query(getCtx(), I_OV_CierreComex.Table_Name, "C_Order_ID=?", get_TrxName())
 				.setParameters(C_Order_ID)
 				.list();
-		m_llegadas = new MLlegada[list.size()];
-		list.toArray(m_llegadas);
-		return m_llegadas;
+		m_CierreComex = new MCierreComex[list.size()];
+		list.toArray(m_CierreComex);
+		return m_CierreComex;
 	}
 	
 	/**
@@ -757,10 +623,5 @@ public class MLlegada extends X_OV_Llegada implements DocAction
 	{
 		super.setC_BPartner_Location_ID (C_BPartner_Location_ID);
 	}	//	setC_BPartner_Location_ID
-
-	public int getDoc_User_ID() {
-		return 0;
-	}
-
 	
-}	//	MLlegada
+}	//	MCierreComex

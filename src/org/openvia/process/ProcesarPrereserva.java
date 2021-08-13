@@ -50,7 +50,7 @@ public class ProcesarPrereserva extends SvrProcess {
 		StringBuffer sqlPrevNoProcesados = new StringBuffer("SELECT Count(*) FROM OV_Prereserva p WHERE p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' AND p.ov_prereserva_id NOT IN (SELECT ov_prereserva_id FROM OV_Documentos_preventa WHERE ov_prereserva_id = p.ov_prereserva_id)");
 		int prevNoProcesados = DB.getSQLValue(get_TrxName(), sqlPrevNoProcesados.toString());
 		if (prevNoProcesados > 0) {
-			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' AND p.ov_prereserva_id NOT IN (SELECT ov_prereserva_id FROM OV_Documentos_preventa WHERE ov_prereserva_id = p.ov_prereserva_id) Order By t.ov_orden ASC", get_TrxName());
+			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' AND p.ov_prereserva_id NOT IN (SELECT ov_prereserva_id FROM OV_Documentos_preventa WHERE ov_prereserva_id = p.ov_prereserva_id) Order By t.ov_orden ASC, p.datedoc", get_TrxName());
 //			PreparedStatement pstPre = DB.prepareStatement("SELECT p.OV_Prereserva_ID FROM OV_Prereserva p, C_DocType t WHERE p.C_DocType_ID = t.C_DocType_ID AND p.C_Order_ID = " + order_ID + " AND p.DocStatus = 'CO' Order By t.ov_orden ASC", get_TrxName());
 			ResultSet res = pstPre.executeQuery();
 			Map<String, String> mapError = new HashMap<String, String>();
@@ -350,6 +350,9 @@ public class ProcesarPrereserva extends SvrProcess {
 				String correoTo = "raranda@comten.cl";
 				EMail email = M_Client.createEMail(correoTo, "Problema al inserta linea desde Preventa de transito ", cuerpo.toString(), true);
 				EMail.SENT_OK.equals(email.send());
+				
+				EMail email2 = M_Client.createEMail("icastroruz@gmail.com", "Problema al inserta linea desde Preventa de transito ", cuerpo.toString(), true);
+				EMail.SENT_OK.equals(email2.send());
 			}
 			// Enviar Aviso
 		}

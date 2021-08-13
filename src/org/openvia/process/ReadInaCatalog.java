@@ -59,6 +59,7 @@ import org.openvia.inacatalog.iclientes.I_iClientes;
 import org.openvia.inacatalog.iclienteslcontactos.I_iClientesLContactos;
 import org.openvia.inacatalog.iclientesldirs.IClientesLDirsImp;
 import org.openvia.inacatalog.iclientesldirs.I_iClientesLDirs;
+import org.openvia.model.DetalleNoGenerado;
 
 public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidosLins {
 
@@ -303,7 +304,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 								preventa.setC_DocType_ID(1000571); // 1000571: PreVenta - Nota de Venta
 								preventa.setAD_Org_ID(m_AD_Org_ID);
 								preventa.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
-								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
+								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())) == null || clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli() == null || clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
 									preventa.setC_BPartner_Location_ID(MBPartnerLocation.getForBPartner(Env.getCtx(), preventa.getC_BPartner_ID(),get_TrxName())[0].getC_BPartner_Location_ID());
 								else
 									preventa.setC_BPartner_Location_ID(Integer.parseInt(clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli()));
@@ -328,11 +329,12 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									System.out.println("Inserta Lineas preventa");
 									// Revisar si existe OC para preventa, si no existe no se inserta Preventa y se envia aviso
 									int line = 0;
+									List<DetalleNoGenerado> listNoGenerado = new ArrayList<DetalleNoGenerado>();
 									for (IPedidosLinsModel lin : iPedidos.getListIPedidosLins()) {
+										MProduct product = productByValue(lin.getCodArticulo());
 										if (lin.getOrderLineID() != null) {
 											MPrereservaLine preLine = new MPrereservaLine(preventa);
 											line = line+10;
-											MProduct product = productByValue(lin.getCodArticulo());
 											preLine.setLine(line);
 											preLine.setM_Product_ID(product.getM_Product_ID());
 											preLine.setC_UOM_ID(product.getC_UOM_ID());
@@ -352,7 +354,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											preLine.set_CustomColumn("Discount4", BigDecimal.ZERO);
 											preLine.set_CustomColumn("Discount5", BigDecimal.ZERO);
 											preLine.setC_OrderLine_ID(lin.getOrderLineID());
+											preLine.setDescription(lin.getDesLinPed());
+											preLine.set_CustomColumn("DEMAND", lin.getDemand());
 											preLine.save();
+											if (lin.getDemand() > 0) {
+												listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), new BigDecimal(lin.getDemand()).subtract(new BigDecimal(lin.getCanLinPed())), new BigDecimal(lin.getDemand())));
+											}
+										} else {
+											listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), new BigDecimal(lin.getCanLinPed()), new BigDecimal(lin.getCanLinPed())));
 										}
 									}
 									System.out.println("Mensajes...");
@@ -405,9 +414,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
 										String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
 										EMail email = M_Client.createEMail(correoTo, "Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
+										email.addCc("crodriguez@comercialwindsor.cl");
+										email.addCc("aparra@comercialwindsor.cl");
+										email.addCc("agalemiri@comercialwindsor.cl");
+										email.addCc("dorta@comercialwindsor.cl");
+										email.addCc("raranda@comten.cl");
 										EMail.SENT_OK.equals(email.send());
 										
-										EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
+										/*EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
 										EMail.SENT_OK.equals(email2.send());
 										
 										EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
@@ -420,12 +434,89 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 										EMail.SENT_OK.equals(email5.send());
 										
 										EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl","Pre-venta Inacatalog "+documentNoInaCat+" "+new Timestamp(System.currentTimeMillis()),mensajeCompleto.toString(),true);
-										EMail.SENT_OK.equals(email6.send());
-									} else {
+										EMail.SENT_OK.equals(email6.send());*/
+									}
+									
+									BigDecimal totallines = new BigDecimal(DB.getSQLValue(get_TrxName(), "SELECT SUM(linenetamt) FROM ov_prereservaline WHERE ov_prereserva_id = " + preventa.get_ID()));
+									BigDecimal porcentaje = totallines.multiply(new BigDecimal(100)).divide(new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TOTNETOPED).toString()),0);
+									if (porcentaje.compareTo(new BigDecimal(100)) >= 0) {
 										preventa.setDocAction("CO");
-										if(preventa.processIt ("CO"))
-										{
+										if(preventa.processIt ("CO")) {
 											preventa.save();
+										}
+									} else if (porcentaje.compareTo(new BigDecimal(70)) >= 0 && porcentaje.compareTo(new BigDecimal(100)) < 0) {
+										preventa.setDocAction("CO");
+										if(preventa.processIt ("CO")) {
+											preventa.save();
+										}
+										// Se completa y se envia aviso por lineas no insertadas y parciales
+										if (listNoGenerado.size() > 0) {
+											StringBuffer sf = new StringBuffer();
+											for (DetalleNoGenerado det : listNoGenerado) {
+												if (det.getUniNoInyectada() == det.getDemand())
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea no inyectada)" + "\n");
+												else
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada con cantidad parcial)" + "\n");
+											}
+											MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
+											String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
+											EMail email = M_Client.createEMail(correoTo, "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											email.addCc("crodriguez@comercialwindsor.cl");
+											email.addCc("aparra@comercialwindsor.cl");
+											email.addCc("agalemiri@comercialwindsor.cl");
+											email.addCc("dorta@comercialwindsor.cl");
+											email.addCc("raranda@comten.cl");
+											EMail.SENT_OK.equals(email.send());
+											
+											/*EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email2.send());
+											
+											EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email3.send());
+											
+											EMail email4 = M_Client.createEMail("raranda@comten.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email4.send());
+											
+											EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email5.send());
+											
+											EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email6.send());*/
+										}
+									} else {
+										// Queda en DR y se envia aviso por lineas no insertadas y parciales
+										if (listNoGenerado.size() > 0) {
+											StringBuffer sf = new StringBuffer();
+											for (DetalleNoGenerado det : listNoGenerado) {
+												if (det.getUniNoInyectada() == det.getDemand())
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea no inyectada)" + "\n");
+												else
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada con cantidad parcial)" + "\n");
+											}
+											MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
+											String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
+											EMail email = M_Client.createEMail(correoTo, "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											email.addCc("crodriguez@comercialwindsor.cl");
+											email.addCc("aparra@comercialwindsor.cl");
+											email.addCc("agalemiri@comercialwindsor.cl");
+											email.addCc("dorta@comercialwindsor.cl");
+											email.addCc("raranda@comten.cl");
+											EMail.SENT_OK.equals(email.send());
+											
+											/*EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email2.send());
+											
+											EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email3.send());
+											
+											EMail email4 = M_Client.createEMail("raranda@comten.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email4.send());
+											
+											EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email5.send());
+											
+											EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl", "Preventa de transito N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email6.send());*/
 										}
 									}
 								} else {
@@ -434,7 +525,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 							} else {
 								order = new MOrder(Env.getCtx(), 0, get_TrxName());
 								order.setAD_Org_ID(m_AD_Org_ID);
-								order.set_CustomColumn("documentnoinacat", jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString());
+								String documentNoInaCat = jsonObjPedido.get(I_iPedidos.COLUMNA_CODEMPRESA).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString() + " - " + jsonObjPedido.get(I_iPedidos.COLUMNA_CODPEDIDO).toString();
+								order.set_CustomColumn("documentnoinacat", documentNoInaCat);
 								order.setDateOrdered(stringToTimestamp(jsonObjPedido.get(I_iPedidos.COLUMNA_FECPEDIDO).toString()));
 								order.setC_BPartner_ID(bPartnerByValue(jsonObjPedido.get(I_iPedidos.COLUMNA_CODCLIENTE).toString()).getC_BPartner_ID());
 								if (clientesDir.apiGetClienteLDir(Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_CODEMPRESA).toString()), jsonObjPedido.get(clientesDir.COLUMNA_CODCLIENTE).toString(), Integer.parseInt(jsonObjPedido.get(clientesDir.COLUMNA_LINDIRCLI).toString())).getCodSuDirCli().equals(""))
@@ -521,6 +613,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									}
 									listaFinal.add(listTmp.get(0));
 								}
+								List<DetalleNoGenerado> listNoGenerado = new ArrayList<DetalleNoGenerado>();
 								for (IPedidosLinsModel lin : listaFinal) {
 									MProduct product = productByValue(lin.getCodArticulo());
 									StringBuffer s_sql = new StringBuffer();
@@ -534,6 +627,7 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											.append(" AND r.DocStatus IN ('CO','CL')")
 											.append(" AND rl.M_Product_ID = ").append(product.getM_Product_ID())
 											.append(" AND rl.QtyReserved > 0 ")
+											.append(" AND rl.liberada = 'N'")
 											.append(" ORDER BY rl.Created");
 
 									PreparedStatement pst = DB.prepareStatement(s_sql.toString(), get_TrxName());
@@ -589,11 +683,13 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 													orderLine.setQtyEntered(disponible);
 													orderLine.setQtyOrdered(disponible);
 													orderLine.set_CustomColumn("DEMAND", entry.getValue());
+													listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), entry.getValue().subtract(disponible), entry.getValue()));
 												} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
 													orderLine.setQtyEntered(new BigDecimal(0));
 													orderLine.setQtyOrdered(new BigDecimal(0));
 													orderLine.set_CustomColumn("DEMAND", entry.getValue());
 													orderLine.set_CustomColumn("NOTPRINT", "Y");
+													listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), entry.getValue(), entry.getValue()));
 												}
 											} else {
 												orderLine.set_CustomColumn("M_RequisitionLine_ID", entry.getKey());
@@ -638,11 +734,13 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 											orderLine.setQtyEntered(disponible);
 											orderLine.setQtyOrdered(disponible);
 											orderLine.set_CustomColumn("DEMAND", new BigDecimal(lin.getCanLinPed()));
+											listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), new BigDecimal(lin.getCanLinPed()).subtract(disponible), new BigDecimal(lin.getCanLinPed())));
 										} else if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
 											orderLine.setQtyEntered(new BigDecimal(0));
 											orderLine.setQtyOrdered(new BigDecimal(0));
 											orderLine.set_CustomColumn("DEMAND", new BigDecimal(lin.getCanLinPed()));
 											orderLine.set_CustomColumn("NOTPRINT", "Y");
+											listNoGenerado.add(new DetalleNoGenerado(product.getValue(), product.getName(), new BigDecimal(lin.getCanLinPed()), new BigDecimal(lin.getCanLinPed())));
 										}
 										BigDecimal priceList = new BigDecimal(lin.getPreLinPed());
 										BigDecimal desc1 = new BigDecimal(lin.getTpcDto01());
@@ -709,14 +807,86 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 									}
 								} else {
 									BigDecimal porcentaje = order.getGrandTotal().multiply(new BigDecimal(100)).divide(new BigDecimal(jsonObjPedido.get(I_iPedidos.COLUMNA_TOTPED).toString()),0);
-									if (porcentaje.compareTo(new BigDecimal(70)) >= 0) {
+									if (porcentaje.compareTo(new BigDecimal(100)) >= 0) {
 										order.setDocAction("CO");
-										if(order.processIt ("CO"))
-										{
+										if(order.processIt ("CO")) {
 											order.save();
 										}
-									}
-									
+									} else if (porcentaje.compareTo(new BigDecimal(70)) >= 0 && porcentaje.compareTo(new BigDecimal(100)) < 0) {
+										order.setDocAction("CO");
+										if(order.processIt ("CO")) {
+											order.save();
+										}
+										// Se completa y se envia aviso por lineas no insertadas y parciales
+										if (listNoGenerado.size() > 0) {
+											StringBuffer sf = new StringBuffer();
+											for (DetalleNoGenerado det : listNoGenerado) {
+												if (det.getUniNoInyectada() == det.getDemand())
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada en 0)" + "\n");
+												else
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada con cantidad parcial)" + "\n");
+											}
+											MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
+											String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
+											EMail email = M_Client.createEMail(correoTo, "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											email.addCc("crodriguez@comercialwindsor.cl");
+											email.addCc("aparra@comercialwindsor.cl");
+											email.addCc("agalemiri@comercialwindsor.cl");
+											email.addCc("dorta@comercialwindsor.cl");
+											email.addCc("raranda@comten.cl");
+											EMail.SENT_OK.equals(email.send());
+											
+											/*EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email2.send());
+											
+											EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email3.send());
+											
+											EMail email4 = M_Client.createEMail("raranda@comten.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email4.send());
+											
+											EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email5.send());
+											
+											EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos de 100% (y mas del 70%) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email6.send());*/
+										}
+									} else {
+										// Queda en DR y se envia aviso por lineas no insertadas y parciales
+										if (listNoGenerado.size() > 0) {
+											StringBuffer sf = new StringBuffer();
+											for (DetalleNoGenerado det : listNoGenerado) {
+												if (det.getUniNoInyectada() == det.getDemand())
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada en 0)" + "\n");
+												else
+													sf.append(det.getCodigo() + " - " + det.getDescripcion() + " " + " Unidades no inyectadas: " + det.getUniNoInyectada() + " Demanda original: " + det.getDemand() + " (Linea inyectada con cantidad parcial)" + "\n");
+											}
+											MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
+											String correoTo = jsonObjPedido.get(I_iPedidos.COLUMNA_NOMIPAD).toString()+"@comercialwindsor.cl";
+											EMail email = M_Client.createEMail(correoTo, "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											email.addCc("crodriguez@comercialwindsor.cl");
+											email.addCc("aparra@comercialwindsor.cl");
+											email.addCc("agalemiri@comercialwindsor.cl");
+											email.addCc("dorta@comercialwindsor.cl");
+											email.addCc("raranda@comten.cl");
+											EMail.SENT_OK.equals(email.send());
+											
+											/*EMail email2 = M_Client.createEMail("crodriguez@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email2.send());
+											
+											EMail email3 = M_Client.createEMail("aparra@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email3.send());
+											
+											EMail email4 = M_Client.createEMail("raranda@comten.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email4.send());
+											
+											EMail email5 = M_Client.createEMail("agalemiri@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email5.send());
+											
+											EMail email6 = M_Client.createEMail("dorta@comercialwindsor.cl", "Nota de venta N°"+documentNoInaCat+" - Inyectada con menos del 70% (Borrador) "+new Timestamp(System.currentTimeMillis()), sf.toString(), true);
+											EMail.SENT_OK.equals(email6.send());*/
+										}
+									}									
 								}
 							}
 						}
@@ -766,6 +936,8 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 					MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
 					EMail email = M_Client.createEMail("raranda@comten.cl", "Error en Documento Inacatalog "+pedido+" "+new Timestamp(System.currentTimeMillis()),"Error al procesar documento inacatalog <br />" + sw.toString(),true);
 					EMail.SENT_OK.equals(email.send());
+					EMail email2 = M_Client.createEMail("icastroruz@gmail.com", "Error en Documento Inacatalog "+pedido+" "+new Timestamp(System.currentTimeMillis()),"Error al procesar documento inacatalog <br />" + sw.toString(),true);
+					EMail.SENT_OK.equals(email2.send());
 				}
 			}
 		}
@@ -1108,10 +1280,14 @@ public class ReadInaCatalog extends SvrProcess implements I_iPedidos, I_iPedidos
 						sumPreventas = BigDecimal.ZERO;
 					
 					BigDecimal disponible = rs.getBigDecimal("QtyEntered").subtract(sumPreventas);
-					
+					lin.setDemand(0.0);
 					if (disponible.compareTo(new BigDecimal(lin.getCanLinPed())) < 0) {
-						listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada en la preventa: " + lin.getCanLinPed() + ", cantidad OC " + documentNo + ": " + rs.getBigDecimal("QtyEntered") + ", cantidad Total Preventas: " + sumPreventas + ", proximas llegadas " + ocProductoPorLlegar(product.getM_Product_ID(), orderID) + " <br />");
-						continue;
+						//listMsg3.add("Producto: " + product.getValue() + " - " + product.getName() + ", cantidad solicitada en la preventa: " + lin.getCanLinPed() + ", cantidad OC " + documentNo + ": " + rs.getBigDecimal("QtyEntered") + ", cantidad Total Preventas: " + sumPreventas + ", proximas llegadas " + ocProductoPorLlegar(product.getM_Product_ID(), orderID) + " <br />");
+//						continue;
+						if (disponible.compareTo(BigDecimal.ZERO) > 0) {
+							lin.setDemand(lin.getCanLinPed());
+							lin.setCanLinPed(disponible.doubleValue());
+						}
 					}
 					lin.setOrderLineID(rs.getInt("C_OrderLine_ID"));
 				}
