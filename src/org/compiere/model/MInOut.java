@@ -22,7 +22,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -39,6 +41,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.apps.ADialog;
 import org.compiere.apps.ConfirmPanel;
+import org.compiere.print.MPrintFormat;
 import org.compiere.print.ReportEngine;
 import org.compiere.process.DocAction;
 import org.compiere.process.DocumentEngine;
@@ -46,7 +49,9 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.EMail;
 import org.compiere.util.Env;
+import org.compiere.util.Ini;
 import org.compiere.util.KeyNamePair;
+import org.compiere.util.Language;
 import org.compiere.util.Msg;
 import org.compiere.util.TimeUtil;
 import org.ofb.model.OFBForward;
@@ -1364,6 +1369,94 @@ public class MInOut extends X_M_InOut implements DocAction
 					llegadaLine.saveEx();
 				}
 			}
+			
+			// Se envia aviso por llegada de contenedor
+			int cont = DB.getSQLValue(get_TrxName(), "SELECT ov_tipocont FROM ov_llegada WHERE ov_llegada_id = ?", get_ValueAsInt("OV_LLEGADA_ID"));
+			int cont2 = DB.getSQLValue(get_TrxName(), "SELECT ov_tipocont2 FROM ov_llegada WHERE ov_llegada_id = ?", get_ValueAsInt("OV_LLEGADA_ID"));
+			int cont3 = DB.getSQLValue(get_TrxName(), "SELECT ov_tipocont3 FROM ov_llegada WHERE ov_llegada_id = ?", get_ValueAsInt("OV_LLEGADA_ID"));
+			int cont4 = DB.getSQLValue(get_TrxName(), "SELECT ov_tipocont4 FROM ov_llegada WHERE ov_llegada_id = ?", get_ValueAsInt("OV_LLEGADA_ID"));
+			
+			StringBuffer sfCont = new StringBuffer();
+			if (cont != 0)
+				sfCont.append(getNombreContenedor(cont));
+			if (cont2 != 0) {
+				if (sfCont.length()>0)
+					sfCont.append(", ").append(getNombreContenedor(cont2));
+				else 
+					sfCont.append(getNombreContenedor(cont2));
+			}
+			if (cont3 != 0) {
+				if (sfCont.length()>0)
+					sfCont.append(", ").append(getNombreContenedor(cont3));
+				else 
+					sfCont.append(getNombreContenedor(cont3));
+			}
+			if (cont4 != 0) {
+				if (sfCont.length()>0)
+					sfCont.append(", ").append(getNombreContenedor(cont4));
+				else 
+					sfCont.append(getNombreContenedor(cont4));
+			}
+			
+			int p_AD_PrintFormat_ID = 1001799; // Aviso Llegada Contenedor PRD
+			//int p_AD_PrintFormat_ID = 1001705; // Aviso Llegada Contenedor DES
+			MClient M_Client = new MClient(Env.getCtx(),get_TrxName());
+			String documentNoOrder = DB.getSQLValueString(get_TrxName(), "SELECT C_Order.DocumentNo FROM C_Order, OV_Llegada WHERE C_Order.C_Order_ID = OV_Llegada.C_Order_ID AND OV_Llegada.OV_Llegada_ID = ?", get_ValueAsInt("OV_LLEGADA_ID"));
+			/*EMail email = M_Client.createEMail("icastroruz@gmail.com", "Aviso de llegada de contenedor de " + sfCont + " el dia " + new SimpleDateFormat("dd/MM/yyyy").format(getMovementDate()) + " mas resumen pre-cuadratura orden " + documentNoOrder + " " + new Timestamp(System.currentTimeMillis()), "Estimados, <br/> se adjunta cuadratura según cuadro resumen. <br/><br/><br/> Atte Felipe Escanilla.<br/>ÁREA LOGÍSTICA DE ENTRADA", true);
+			email.addCc("raranda@comten.cl");*/
+			
+			EMail email = M_Client.createEMail("venta@comercialwindsor.cl", "Aviso de llegada de contenedor de " + sfCont + " el dia " + new SimpleDateFormat("dd/MM/yyyy").format(getMovementDate()) + " mas resumen pre-cuadratura orden " + documentNoOrder + " " + new Timestamp(System.currentTimeMillis()), "Estimados, <br/> se adjunta cuadratura según cuadro resumen. <br/><br/><br/> Atte Felipe Escanilla.<br/>ÁREA LOGÍSTICA DE ENTRADA", true);
+			email.addCc("contenedores_lampa@comercialwindsor.cl");
+			email.addCc("contacto@comercialwindsor.cl");
+			
+			email.addCc("jvillarroel@comercialwindsor.cl");
+			email.addCc("jgalemiri@comercialwindsor.cl");
+			email.addCc("pguajardo@comercialwindsor.cl");
+			email.addCc("itroncoso@comercialwindsor.cl");
+			email.addCc("mmanriquez@comercialwindsor.cl");
+			email.addCc("crodriguez@comercialwindsor.cl");
+			email.addCc("rgalemiri@fabrics.cl");
+			email.addCc("maranguren@comercialwindsor.cl");
+			email.addCc("csalvo@comercialwindsor.cl");
+			email.addCc("cchihuaicura@comercialwindsor.cl");
+			email.addCc("gkaplan@mashini.cl");
+			email.addCc("mgarcia@mashini.cl");
+			email.addCc("fkendall@comercialwindsor.cl");
+			email.addCc("pcortez@comercialwindsor.cl");
+			email.addCc("mescalona@comercialwindsor.cl");
+			email.addCc("vsandoval@comercialwindsor.cl");
+			email.addCc("damarigonzaleznarvaez@gmail.com");
+			email.addCc("jsanchezar@comercialwindsor.cl");
+			email.addCc("fjimenez@comercialwindsor.cl");
+			email.addCc("agalemiri@comercialwindsor.cl");
+			
+			MPrintFormat format = null;
+			Language language = Language.getLoginLanguage();
+			
+			String DocumentNo = order.getDocumentNo();
+			String documentDir = System.getProperty("user.dir"); //client.getDocumentDir();
+			
+			MQuery query = new MQuery("M_InOut_ID");
+			query.addRestriction("M_InOut_ID", MQuery.EQUAL, getM_InOut_ID());
+			
+			format = MPrintFormat.get (getCtx(), p_AD_PrintFormat_ID, false);
+			format.setLanguage(language);
+			format.setTranslationLanguage(language);
+			PrintInfo info = new PrintInfo(
+					DocumentNo,
+					X_M_InOut.Table_ID,
+					getM_InOut_ID());
+				info.setCopies(1);
+			ReportEngine re = new ReportEngine(getCtx(), format, query, info);
+			File llegada = null;
+			if (!Ini.isClient())
+				llegada = new File(getPDFFileName(documentDir, getM_InOut_ID()));
+			File attachment = re.getPDF(llegada);
+			
+			email.addAttachment(attachment);
+			EMail.SENT_OK.equals(email.send());
+			
+			llegada.delete();
 		}
 		// Para recibos de llegadas Openvia
 		
@@ -3856,6 +3949,36 @@ public class MInOut extends X_M_InOut implements DocAction
 		
 		return false;
 	}
+	
+	private String getNombreContenedor(int codContenedor) {
+		switch (codContenedor) {
+		case 0:
+			return "20'";
+		case 1:
+			return "40'";
+		case 2:
+			return "40 HC";
+		case 3:
+			return "40 NOR";
+		case 4:
+			return "LCL";
+		default:
+			return null;
+		}
+	}
+	
+	private String getPDFFileName (String documentDir, int M_InOut_ID)
+	{
+		StringBuffer sb = new StringBuffer (documentDir);
+		if (sb.length() == 0)
+			sb.append(".");
+		if (!sb.toString().endsWith(File.separator))
+			sb.append(File.separator);
+		sb.append("M_InOut_ID_")
+			.append(M_InOut_ID)
+			.append(".pdf");
+		return sb.toString();
+	}	//	getPDFFileName
 	
 }	//	MInOut
 

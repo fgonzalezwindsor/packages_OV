@@ -630,8 +630,64 @@ public class ImportOrderMuroRF extends SvrProcess
 											//BigDecimal cant = new BigDecimal (rs.getInt("Cantidad"));
 											obl.setPriceEntered(priceProduct.intValue());
 										
-											String sqlps = "Select qtyavailableofb(p.m_product_ID, 1000001  ) + qtyavailableofb(p.m_product_ID, 1000010  ) as Disponible, p.ProductType,  " +
-													"qtyavailableofb(p.m_product_ID,1000024)+qtyavailableofb(p.m_product_ID,1000025) OtroDisponible"+
+											String sqlps = "Select "+ 
+													" COALESCE ( "+
+												      "         (SELECT SUM (s.qtyonhand) "+
+												       "           FROM rv_storage s "+
+												        "         WHERE     s.M_Product_ID = p.m_product_id "+
+												         "              AND s.m_warehouse_id IN (1000001, 1000010) "+
+												          "             AND s.isactive = 'Y'), "+
+												           "    0) "+
+												          " - (  (SELECT COALESCE (SUM (ol2.qtyreserved), 0)      "+
+												         "         FROM C_orderline ol2      "+
+												          "             INNER JOIN C_Order o2  "+
+												           "               ON (ol2.C_ORDER_ID = o2.c_order_ID)  "+
+												            "     WHERE     ol2.M_Product_ID = p.m_product_id "+
+												             "          AND o2.m_warehouse_id = 1000001 "+
+												              "         AND o2.saldada <> 'Y' "+
+												               "        AND o2.docstatus IN ('IP', 'CO', 'CL') "+
+												                "       AND o2.issotrx = 'Y' "+
+												                 "      AND o2.c_doctypetarget_ID NOT IN "+
+												                  "            (1000110, 1000048, 1000568)) "+
+												            " + (SELECT COALESCE (SUM (rl.qtyreserved), 0)     "+
+												             "     FROM M_Requisitionline rl     "+
+												              "         INNER JOIN M_Requisition r  "+
+												               "           ON (rl.M_Requisition_ID = r.M_Requisition_ID)  "+
+												                " WHERE     rl.M_Product_ID = p.m_product_id  "+
+												                 "      AND r.m_warehouse_id = 1000001  "+
+												                  "     AND r.docstatus IN ('CO', 'CL')  "+
+												                   "    AND r.issotrx = 'Y'))  "+
+													" as Disponible, p.ProductType,  " +
+												                   
+													" COALESCE ( "+
+												      "         (SELECT SUM (s.qtyonhand) "+
+												       "           FROM rv_storage s "+
+												        "         WHERE     s.M_Product_ID = p.m_product_id "+
+												         "              AND s.m_warehouse_id IN (1000024,1000025) "+
+												          "             AND s.isactive = 'Y'), "+
+												           "    0) "+
+												          " - (  (SELECT COALESCE (SUM (ol2.qtyreserved), 0)      "+
+												         "         FROM C_orderline ol2      "+
+												          "             INNER JOIN C_Order o2  "+
+												           "               ON (ol2.C_ORDER_ID = o2.c_order_ID)  "+
+												            "     WHERE     ol2.M_Product_ID = p.m_product_id "+
+												             "          AND o2.m_warehouse_id IN (1000024,1000025) "+
+												              "         AND o2.saldada <> 'Y' "+
+												               "        AND o2.docstatus IN ('IP', 'CO', 'CL') "+
+												                "       AND o2.issotrx = 'Y' "+
+												                 "      AND o2.c_doctypetarget_ID NOT IN "+
+												                  "            (1000110, 1000048, 1000568)) "+
+												            " + (SELECT COALESCE (SUM (rl.qtyreserved), 0)     "+
+												             "     FROM M_Requisitionline rl     "+
+												              "         INNER JOIN M_Requisition r  "+
+												               "           ON (rl.M_Requisition_ID = r.M_Requisition_ID)  "+
+												                " WHERE     rl.M_Product_ID = p.m_product_id  "+
+												                 "      AND r.m_warehouse_id IN (1000024,1000025)  "+
+												                  "     AND r.docstatus IN ('CO', 'CL')  "+
+												                   "    AND r.issotrx = 'Y'))  "+              
+													
+													//"qtyavailableofb(p.m_product_ID,1000024)+qtyavailableofb(p.m_product_ID,1000025)"
+													" as OtroDisponible"+
 												   " from M_product p where  p.m_product_ID="+ rs.getInt("M_Product_ID");
 									try
 									{

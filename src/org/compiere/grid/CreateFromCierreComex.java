@@ -149,6 +149,9 @@ public class CreateFromCierreComex extends CreateFrom
 		if (MClient.get(Env.getCtx(), order.getAD_Client_ID()).get_Value("ov_gastos_generales") == null)
 			errors.append("Compañia sin Gastos Generales").append("\n");
 		
+		if (order.get_Value("dolar") == null || new BigDecimal(order.get_Value("dolar").toString()).compareTo(BigDecimal.ZERO) == 0)
+			errors.append("Debe ingresar Dolar").append("\n");
+		
 		for (int i = 0; i < miniTable.getRowCount(); i++) {
 			if (((Boolean)miniTable.getValueAt(i, 0)).booleanValue()) {
 				MOrderLine orderLine = new MOrderLine(Env.getCtx(), ((KeyNamePair)miniTable.getValueAt(i, 1)).getKey(), trxName);
